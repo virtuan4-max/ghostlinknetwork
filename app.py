@@ -29,10 +29,14 @@ def visualizer():
 @app.route("/api/start_bot", methods=["POST"])
 def start_bot():
     data = request.get_json(force=True) or {}
-    token  = data.get("token", "").strip()
-    invite = data.get("invite", "").strip()
-    depth  = int(data.get("depth", 2))
-    delay  = float(data.get("delay", 3.0))
+    token      = data.get("token",    "").strip()
+    invite     = data.get("invite",   "").strip()
+    depth      = int(data.get("depth", 2))
+    delay      = float(data.get("delay", 3.0))
+    keywords   = data.get("keywords", "").strip()      # comma-separated override
+    scan_byod  = bool(data.get("scan_byod",  False))
+    scan_ubg   = bool(data.get("scan_ubg",   False))
+    scan_forums= bool(data.get("scan_forums", True))
 
     if not token or not invite:
         return jsonify({"error": "token and invite are required"}), 400
@@ -40,7 +44,9 @@ def start_bot():
     session_id  = str(uuid.uuid4())
     output_dir  = os.path.join(os.path.dirname(__file__), "outputs")
     os.makedirs(output_dir, exist_ok=True)
-    output_file = os.path.join(output_dir, f"{session_id}.json")
+    output_file  = os.path.join(output_dir, f"{session_id}.json")
+    byod_file    = os.path.join(output_dir, f"{session_id}_byod.txt")
+    ubg_file     = os.path.join(output_dir, f"{session_id}_ubg.txt")
 
     q = queue.Queue()
     with _sessions_lock:
@@ -49,6 +55,8 @@ def start_bot():
             "done":        False,
             "returncode":  None,
             "output_file": output_file,
+            "byod_file":   byod_file   if scan_byod  else None,
+            "ubg_file":    ubg_file    if scan_ubg   else None,
         }
 
     def _run():
@@ -61,6 +69,15 @@ def start_bot():
             "--delay",  str(delay),
             "--output", output_file,
         ]
+        if keywords:
+            cmd += ["--keywords", keywords]
+        if scan_byod:
+            cmd += ["--scan-byod", "--byod-output", byod_file]
+        if scan_ubg:
+            cmd += ["--scan-ubg", "--ubg-output", ubg_file]
+        if not scan_forums:
+            cmd += ["--no-forums"]
+
         try:
             proc = subprocess.Popen(
                 cmd,
@@ -130,17 +147,45 @@ def download(session_id):
     return send_file(f, as_attachment=True, download_name="ecosystem.json")
 
 
+@app.route("/api/download_byod/<session_id>")
+def download_byod(session_id):
+    with _sessions_lock:
+        sess = sessions.get(session_id)
+    if not sess:
+        return abort(404)
+    f = sess.get("byod_file")
+    if not f or not os.path.exists(f):
+        return abort(404)
+    return send_file(f, as_attachment=True, download_name="byod_ips.txt")
+
+
+@app.route("/api/download_ubg/<session_id>")
+def download_ubg(session_id):
+    with _sessions_lock:
+        sess = sessions.get(session_id)
+    if not sess:
+        return abort(404)
+    f = sess.get("ubg_file")
+    if not f or not os.path.exists(f):
+        return abort(404)
+    return send_file(f, as_attachment=True, download_name="ubg_links.txt")
+
+
 @app.route("/api/check/<session_id>")
 def check(session_id):
     with _sessions_lock:
         sess = sessions.get(session_id)
     if not sess:
         return abort(404)
-    f = sess.get("output_file", "")
+    f      = sess.get("output_file", "")
+    bf     = sess.get("byod_file")
+    uf     = sess.get("ubg_file")
     return jsonify({
-        "done":       sess["done"],
-        "returncode": sess.get("returncode"),
-        "has_file":   os.path.exists(f) if f else False,
+        "done":          sess["done"],
+        "returncode":    sess.get("returncode"),
+        "has_file":      os.path.exists(f) if f else False,
+        "has_byod":      os.path.exists(bf) if bf else False,
+        "has_ubg":       os.path.exists(uf) if uf else False,
     })
 
 
