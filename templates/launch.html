@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostLink | Launch Mapper</title>
+    <style>
+        :root {
+            --bg: #000;
+            --accent: #6ecbff;
+            --accent-glow: rgba(110, 203, 255, 0.3);
+            --text: #e2e8f0;
+            --text-dim: #94a3b8;
+            --border: rgba(110, 203, 255, 0.08);
+            --border-solid: rgba(110, 203, 255, 0.18);
+            --card-bg: rgba(255, 255, 255, 0.03);
+            --input-bg: rgba(255, 255, 255, 0.05);
+            --font: 'Courier New', monospace;
+            --warn-bg: rgba(245, 158, 11, 0.08);
+            --warn-border: rgba(245, 158, 11, 0.35);
+            --warn-text: #f59e0b;
+            --danger-bg: rgba(239, 68, 68, 0.08);
+            --danger-border: rgba(239, 68, 68, 0.35);
+            --danger-text: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: var(--font);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header */
+        header {
+            padding: 16px 32px;
+            border-bottom: 1px solid var(--border-solid);
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        .logo-icon {
+            width: 22px; height: 22px;
+            border: 1.5px solid var(--accent);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 10px var(--accent-glow);
+            animation: pulse 3s infinite;
+        }
+        .logo-icon::before {
+            content: '';
+            width: 6px; height: 6px;
+            background: var(--accent);
+            border-radius: 50%;
+        }
+        @keyframes pulse {
+            0%,100% { box-shadow: 0 0 10px var(--accent-glow); }
+            50% { box-shadow: 0 0 22px var(--accent-glow), 0 0 44px rgba(110,203,255,.12); }
+        }
+
+        .logo-text {
+            font-size: 11px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .back-link {
+            margin-left: auto;
+            color: var(--text-dim);
+            text-decoration: none;
+            font-size: 10px;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            transition: color .15s;
+        }
+        .back-link:hover { color: var(--accent); }
+
+        /* Main layout */
+        .main {
+            flex: 1;
+            display: flex;
+            gap: 0;
+            overflow: hidden;
+        }
+
+        /* Config panel */
+        #config-panel {
+            width: 400px;
+            flex-shrink: 0;
+            border-right: 1px solid var(--border-solid);
+            overflow-y: auto;
+            padding: 32px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+
+        #config-panel::-webkit-scrollbar { width: 3px; }
+        #config-panel::-webkit-scrollbar-thumb { background: var(--border-solid); }
+
+        h1 {
+            font-size: 1.1rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 4px;
+        }
+
+        .page-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-dim);
+            line-height: 1.7;
+        }
+
+        /* Warning boxes */
+        .warning-box {
+            padding: 14px 16px;
+            border: 1px solid var(--warn-border);
+            background: var(--warn-bg);
+            color: var(--warn-text);
+            font-size: 10.5px;
+            line-height: 1.7;
+        }
+
+        .warning-box .w-title {
+            font-size: 9px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        .danger-box {
+            padding: 14px 16px;
+            border: 1px solid var(--danger-border);
+            background: var(--danger-bg);
+            color: var(--danger-text);
+            font-size: 10.5px;
+            line-height: 1.7;
+        }
+
+        .danger-box .w-title {
+            font-size: 9px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+            display: block;
+        }
+
+        /* Form */
+        .field { display: flex; flex-direction: column; gap: 8px; }
+
+        label {
+            font-size: 9px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        label span {
+            color: var(--accent);
+            margin-left: 5px;
+        }
+
+        input[type="text"],
+        input[type="password"],
+        input[type="number"] {
+            background: var(--input-bg);
+            border: 1px solid var(--border-solid);
+            color: var(--text);
+            font-family: var(--font);
+            font-size: 12px;
+            padding: 10px 14px;
+            outline: none;
+            transition: border-color .14s, box-shadow .14s;
+            width: 100%;
+        }
+
+        input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        input::placeholder { color: var(--text-dim); }
+
+        .field-hint {
+            font-size: 9.5px;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+
+        /* Grid for two number fields */
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        /* Launch button */
+        #btn-launch {
+            width: 100%;
+            padding: 14px;
+            background: transparent;
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            font-family: var(--font);
+            font-size: 12px;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all .2s;
+            box-shadow: 0 0 10px var(--accent-glow);
+            margin-top: 8px;
+        }
+
+        #btn-launch:hover:not(:disabled) {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: 0 0 30px var(--accent);
+        }
+
+        #btn-launch:disabled {
+            opacity: .5;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        /* Terminal panel */
+        #terminal-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .terminal-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-solid);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        .terminal-title {
+            font-size: 9px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            color: var(--text-dim);
+        }
+
+        #terminal-status {
+            font-size: 9px;
+            letter-spacing: .12em;
+            margin-left: auto;
+            text-transform: uppercase;
+        }
+
+        .status-idle { color: var(--text-dim); }
+        .status-running { color: var(--accent); }
+        .status-done { color: #10b981; }
+        .status-error { color: #ef4444; }
+
+        /* The blinking cursor dot */
+        .blink-dot {
+            display: inline-block;
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+            vertical-align: middle;
+        }
+
+        .idle .blink-dot { background: var(--text-dim); }
+        .running .blink-dot { background: var(--accent); animation: blink .8s step-end infinite; }
+        .done .blink-dot { background: #10b981; }
+        .err .blink-dot { background: #ef4444; }
+
+        @keyframes blink { 50% { opacity: 0; } }
+
+        #terminal-output {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            font-size: 12px;
+            line-height: 1.7;
+            color: #7dd3fc;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        #terminal-output::-webkit-scrollbar { width: 3px; }
+        #terminal-output::-webkit-scrollbar-thumb { background: var(--border-solid); }
+
+        .t-line { display: block; }
+        .t-line.dim { color: var(--text-dim); }
+        .t-line.ok { color: #10b981; }
+        .t-line.warn { color: #f59e0b; }
+        .t-line.err { color: #ef4444; }
+        .t-line.sep { color: rgba(110,203,255,0.25); }
+
+        /* Placeholder for empty terminal */
+        .term-placeholder {
+            color: var(--border-solid);
+            font-size: 11px;
+            line-height: 2;
+            padding: 20px 0;
+        }
+
+        /* Post-run action bar */
+        #action-bar {
+            display: none;
+            padding: 16px 20px;
+            border-top: 1px solid var(--border-solid);
+            gap: 12px;
+            flex-shrink: 0;
+            align-items: center;
+        }
+
+        #action-bar.visible { display: flex; }
+
+        .action-label { font-size: 10px; color: var(--text-dim); margin-right: 4px; }
+
+        .action-btn {
+            padding: 9px 22px;
+            font-family: var(--font);
+            font-size: 10px;
+            letter-spacing: .1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all .15s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-download {
+            background: rgba(110,203,255,.07);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+        }
+        .btn-download:hover { background: rgba(110,203,255,.18); }
+
+        .btn-visualizer {
+            background: rgba(16,185,129,.07);
+            border: 1px solid #10b981;
+            color: #10b981;
+        }
+        .btn-visualizer:hover { background: rgba(16,185,129,.18); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo-icon"></div>
+    <span class="logo-text">GhostLink // Mapper Launch</span>
+    <a href="/" class="back-link">← Back</a>
+</header>
+
+<div class="main">
+    <!-- ── Config Panel ── -->
+    <div id="config-panel">
+        <div>
+            <h1>Configure Run</h1>
+            <p class="page-subtitle">Set your parameters below and launch the bot. Output streams live to the terminal on the right.</p>
+        </div>
+
+        <div class="danger-box">
+            <span class="w-title">⚠ Account Safety</span>
+            Use a <strong>dedicated alt/burner Discord account</strong> for this tool. Self-botting (using a user token with automation) violates Discord's Terms of Service. Do not use your main account. The tool may trigger verification challenges or account flags.
+        </div>
+
+        <div class="warning-box">
+            <span class="w-title">◈ Captcha Notice</span>
+            Most Discord servers now require captcha verification on join. For best results: manually join and verify in the target servers <em>before</em> running this tool, then use shallow depth (1–2). The bot will create ghost nodes for servers it cannot enter and continue mapping.
+        </div>
+
+        <!-- Token -->
+        <div class="field">
+            <label>User Token <span>*required</span></label>
+            <input type="password" id="inp-token" placeholder="Paste your Discord user token here" autocomplete="off" spellcheck="false">
+            <div class="field-hint">Settings → Advanced → Developer Mode. Never share your token — it grants full access to your account.</div>
+        </div>
+
+        <!-- Seed Invite -->
+        <div class="field">
+            <label>Seed Invite Code / URL <span>*required</span></label>
+            <input type="text" id="inp-invite" placeholder="e.g.  abc123  or  discord.gg/abc123" autocomplete="off" spellcheck="false">
+            <div class="field-hint">The bot begins crawling from this server outward.</div>
+        </div>
+
+        <!-- Depth + Delay -->
+        <div class="field-row">
+            <div class="field">
+                <label>Depth</label>
+                <input type="number" id="inp-depth" value="2" min="1" max="5" step="1">
+                <div class="field-hint">BFS layers to crawl. 1 = seed only, 2 = seed + discovered servers.</div>
+            </div>
+            <div class="field">
+                <label>Delay (sec)</label>
+                <input type="number" id="inp-delay" value="3.0" min="1" max="30" step="0.5">
+                <div class="field-hint">Pause between joins. Keep ≥ 2s to avoid rate-limits.</div>
+            </div>
+        </div>
+
+        <button id="btn-launch">▶ Launch Bot</button>
+    </div>
+
+    <!-- ── Terminal Panel ── -->
+    <div id="terminal-panel">
+        <div class="terminal-header">
+            <div class="terminal-title">// Bot Output</div>
+            <div id="terminal-status" class="idle">
+                <span class="blink-dot"></span>Idle
+            </div>
+        </div>
+        <div id="terminal-output">
+            <span class="term-placeholder">Configure the mapper on the left and click [ Launch Bot ] to begin.<br>Output will stream here in real-time.</span>
+        </div>
+        <div id="action-bar">
+            <span class="action-label">Run complete —</span>
+            <a id="btn-download" href="#" class="action-btn btn-download" download="ecosystem.json">⬇ Download JSON</a>
+            <a id="btn-open-vis" href="#" class="action-btn btn-visualizer">◈ Open in Visualizer</a>
+        </div>
+    </div>
+</div>
+
+<script>
+(function() {
+    let currentSessionId = null;
+    let evtSource = null;
+
+    const btnLaunch     = document.getElementById('btn-launch');
+    const termOutput    = document.getElementById('terminal-output');
+    const termStatus    = document.getElementById('terminal-status');
+    const actionBar     = document.getElementById('action-bar');
+    const btnDownload   = document.getElementById('btn-download');
+    const btnOpenVis    = document.getElementById('btn-open-vis');
+
+    // ── helpers ──────────────────────────────────────────────────────────────
+
+    function setTermStatus(state, text) {
+        termStatus.className = state;
+        termStatus.innerHTML = `<span class="blink-dot"></span>${text}`;
+    }
+
+    function appendLine(text, cls) {
+        const line = document.createElement('span');
+        line.className = 't-line' + (cls ? ' ' + cls : '');
+        line.textContent = text;
+        termOutput.appendChild(line);
+        termOutput.appendChild(document.createTextNode('\n'));
+        termOutput.scrollTop = termOutput.scrollHeight;
+    }
+
+    function classifyLine(text) {
+        if (/\[OK\]|\[+\]|CRAWL COMPLETE|Saved|Joined/.test(text)) return 'ok';
+        if (/\[x\]|\[!\]|\[ERROR\]|error|Error/.test(text)) return 'err';
+        if (/\[*\]|captcha|forbidden|Unreachable|\[~\]/.test(text)) return 'warn';
+        if (/={10,}/.test(text)) return 'sep';
+        if (/\[=\]|\[>\]/.test(text)) return 'dim';
+        return '';
+    }
+
+    function extractInviteCode(raw) {
+        // Strip URL prefixes if pasted as full URL
+        return raw.replace(/^(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|discord\.com\/invite|discordapp\.com\/invite)\//i, '').trim();
+    }
+
+    // ── Launch ────────────────────────────────────────────────────────────────
+
+    btnLaunch.addEventListener('click', async () => {
+        const token  = document.getElementById('inp-token').value.trim();
+        const invite = extractInviteCode(document.getElementById('inp-invite').value);
+        const depth  = parseInt(document.getElementById('inp-depth').value, 10);
+        const delay  = parseFloat(document.getElementById('inp-delay').value);
+
+        if (!token) { alert('Please enter your Discord user token.'); return; }
+        if (!invite) { alert('Please enter a seed invite code.'); return; }
+        if (isNaN(depth) || depth < 1) { alert('Depth must be at least 1.'); return; }
+
+        // Close any existing stream
+        if (evtSource) { evtSource.close(); evtSource = null; }
+
+        // Clear terminal
+        termOutput.innerHTML = '';
+        actionBar.classList.remove('visible');
+        btnLaunch.disabled = true;
+        setTermStatus('running', 'Starting bot…');
+        appendLine('GhostLink Ecosystem Mapper — initializing…', 'dim');
+        appendLine(`Seed invite : ${invite}`, 'dim');
+        appendLine(`Depth       : ${depth}`, 'dim');
+        appendLine(`Delay       : ${delay}s`, 'dim');
+        appendLine('', '');
+
+        // POST to start the bot
+        let data;
+        try {
+            const res = await fetch('/api/start_bot', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token, invite, depth, delay }),
+            });
+            data = await res.json();
+            if (!res.ok || data.error) {
+                throw new Error(data.error || `HTTP ${res.status}`);
+            }
+        } catch (err) {
+            appendLine('[ERROR] Failed to start bot: ' + err.message, 'err');
+            setTermStatus('err', 'Error');
+            btnLaunch.disabled = false;
+            return;
+        }
+
+        currentSessionId = data.session_id;
+        setTermStatus('running', 'Bot running…');
+
+        // Open SSE stream
+        evtSource = new EventSource(`/api/stream/${currentSessionId}`);
+
+        evtSource.onmessage = (e) => {
+            const raw = e.data;
+            if (raw.startsWith('__DONE__')) {
+                const rc = parseInt(raw.replace('__DONE__', ''), 10);
+                evtSource.close(); evtSource = null;
+                appendLine('', '');
+                if (rc === 0) {
+                    appendLine('[ CRAWL COMPLETE ] — JSON saved successfully.', 'ok');
+                    setTermStatus('done', 'Complete');
+                } else {
+                    appendLine(`[ PROCESS EXITED ] — return code ${rc}`, 'warn');
+                    setTermStatus('done', 'Finished (rc=' + rc + ')');
+                }
+                showActions();
+                btnLaunch.disabled = false;
+                return;
+            }
+            try {
+                const line = JSON.parse(raw);
+                appendLine(line, classifyLine(line));
+            } catch {
+                appendLine(raw, '');
+            }
+        };
+
+        evtSource.onerror = () => {
+            if (evtSource.readyState === EventSource.CLOSED) return; // normal close
+            appendLine('[STREAM ERROR] Connection to server lost.', 'err');
+            setTermStatus('err', 'Stream error');
+            evtSource.close(); evtSource = null;
+            btnLaunch.disabled = false;
+        };
+    });
+
+    // ── Show action buttons after run ─────────────────────────────────────────
+
+    function showActions() {
+        const sid = currentSessionId;
+        btnDownload.href = `/api/download/${sid}`;
+        btnOpenVis.href  = `/visualizer?session=${sid}`;
+        actionBar.classList.add('visible');
+    }
+})();
+</script>
+</body>
+</html>

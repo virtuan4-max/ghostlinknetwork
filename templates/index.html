@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GhostLink Network | Ecosystem Mapper</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+    <style>
+        :root { 
+            --bg: #000000; 
+            --accent: #6ecbff; 
+            --accent-glow: rgba(110, 203, 255, 0.3); 
+            --text-dim: #94a3b8; 
+            --border: rgba(110, 203, 255, 0.08); 
+            --border-solid: rgba(110, 203, 255, 0.18);
+            --font: 'Courier New', monospace; 
+            --card-bg: rgba(255, 255, 255, 0.03); 
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg);
+            color: white;
+            font-family: var(--font);
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        /* ── Hero ── */
+        .hero {
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-size: 5rem;
+            color: var(--accent);
+            text-shadow: 0 0 20px var(--accent-glow);
+            margin-bottom: 1rem;
+            animation: pulse 3s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { text-shadow: 0 0 20px var(--accent-glow); }
+            50% { text-shadow: 0 0 40px var(--accent), 0 0 80px rgba(110,203,255,0.2); }
+        }
+
+        .title { font-size: 3.5rem; letter-spacing: 5px; text-transform: uppercase; }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: var(--text-dim);
+            opacity: 0.6;
+            margin-top: 0.5rem;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+        }
+
+        .scroll-hint {
+            margin-top: 50px;
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            animation: bounce 2s infinite;
+            letter-spacing: 2px;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        /* ── Sections ── */
+        .section {
+            padding: 100px 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section-label {
+            margin-bottom: 16px;
+            font-size: 0.85rem;
+            color: var(--accent);
+            letter-spacing: 3px;
+        }
+
+        /* ── Map Container ── */
+        .map-container {
+            width: 100%;
+            height: 580px;
+            background: var(--card-bg);
+            border: 1px solid var(--border-solid);
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: inset 0 0 60px rgba(0,0,0,0.6), 0 0 40px rgba(110,203,255,0.04);
+        }
+
+        /* Scanline overlay */
+        .map-container::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.05) 50%),
+                        linear-gradient(90deg, rgba(255,0,0,0.012), rgba(0,255,0,0.007), rgba(0,0,255,0.012));
+            background-size: 100% 3px, 3px 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        #mini-graph { width: 100%; height: 100%; }
+
+        /* ── Graph element styles ── */
+        .m-link         { stroke: rgba(110,203,255,0.09); stroke-width: 1; }
+        .m-link.m-intra { stroke: rgba(110,203,255,0.2); }
+        .m-hull         { stroke-width: 1.5; stroke-dasharray: 7 4; }
+        .m-node circle  { cursor: pointer; transition: filter .18s; }
+        .m-node:hover circle { filter: brightness(1.6) drop-shadow(0 0 10px currentColor); }
+
+        /* Labels */
+        .m-label-bg  { fill: rgba(0,0,0,0.82); }
+        .m-label-txt {
+            fill: #dde4ee;
+            font-size: 10px;
+            font-family: var(--font);
+            font-weight: 700;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+
+        /* ── Controls bar (bottom-left of map) ── */
+        #map-controls {
+            position: absolute;
+            bottom: 14px;
+            left: 14px;
+            display: flex;
+            gap: 6px;
+            z-index: 8;
+            opacity: 0;
+            transition: opacity .4s;
+        }
+
+        #map-controls.visible { opacity: 1; }
+
+        .map-ctrl-btn {
+            padding: 5px 12px;
+            background: rgba(0,0,0,0.88);
+            border: 1px solid var(--border-solid);
+            color: var(--text-dim);
+            font-family: var(--font);
+            font-size: 10px;
+            letter-spacing: .06em;
+            cursor: pointer;
+            transition: all .14s;
+            backdrop-filter: blur(8px);
+        }
+
+        .map-ctrl-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .map-ctrl-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 10px var(--accent-glow);
+        }
+
+        /* ── Stats bar ── */
+        #map-stats {
+            position: absolute;
+            top: 16px; right: 16px;
+            display: flex;
+            gap: 6px;
+            z-index: 8;
+            opacity: 0;
+            transition: opacity .4s;
+        }
+
+        #map-stats.visible { opacity: 1; }
+
+        .stat-chip {
+            padding: 4px 10px;
+            border: 1px solid var(--border-solid);
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: .08em;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+        }
+
+        .stat-chip span { color: var(--accent); font-weight: 700; }
+
+        /* ── Live badge ── */
+        #map-live-badge {
+            position: absolute;
+            top: 16px; left: 16px;
+            font-size: 9px;
+            letter-spacing: .2em;
+            text-transform: uppercase;
+            color: #10b981;
+            border: 1px solid rgba(16,185,129,.35);
+            padding: 3px 10px;
+            background: rgba(16,185,129,.08);
+            z-index: 8;
+            display: none;
+        }
+
+        #map-live-badge.visible { display: block; }
+
+        /* ── Loading overlay ── */
+        #map-status {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            z-index: 5;
+            pointer-events: none;
+            transition: opacity .4s;
+        }
+
+        .status-text {
+            color: var(--text-dim);
+            font-size: 0.85rem;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+        }
+
+        .status-dots { color: var(--accent); font-size: 1rem; letter-spacing: 4px; }
+
+        /* ── Map sub-bar (below map) ── */
+        .map-sub-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-top: 16px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .map-hint {
+            font-size: 10px;
+            color: var(--text-dim);
+            letter-spacing: .08em;
+        }
+
+        /* "Visualize Your JSON" button */
+        .btn-vis-json {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 28px;
+            background: rgba(110,203,255,0.05);
+            border: 1px solid var(--border-solid);
+            color: var(--text-dim);
+            font-family: var(--font);
+            font-size: 11px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all .2s;
+        }
+
+        .btn-vis-json:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(110,203,255,0.08);
+            box-shadow: 0 0 18px var(--accent-glow);
+        }
+
+        .btn-vis-json .vis-icon { font-size: 14px; opacity: .8; }
+
+        /* ── Info Grid ── */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin-top: 50px;
+        }
+
+        .info-card {
+            background: var(--card-bg);
+            padding: 30px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            transition: border-color .2s, box-shadow .2s;
+        }
+
+        .info-card:hover {
+            border-color: rgba(110,203,255,0.25);
+            box-shadow: 0 0 20px rgba(110,203,255,0.06);
+        }
+
+        .info-card h3 { color: var(--accent); margin-bottom: 15px; font-size: 1rem; letter-spacing: 2px; }
+        .info-card p  { font-size: 0.85rem; color: var(--text-dim); line-height: 1.8; }
+
+        /* ── CTA ── */
+        .cta-container { text-align: center; padding: 80px 0 100px; }
+        .cta-container p { color: var(--text-dim); margin-bottom: 24px; letter-spacing: 1px; font-size: 0.9rem; }
+
+        .btn-begin {
+            background: transparent;
+            color: var(--accent);
+            border: 1px solid var(--accent);
+            padding: 16px 48px;
+            font-family: var(--font);
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px var(--accent-glow);
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-begin:hover {
+            background: var(--accent);
+            color: var(--bg);
+            box-shadow: 0 0 40px var(--accent), 0 0 80px rgba(110,203,255,0.2);
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px;
+            color: #334155;
+            font-size: 0.7rem;
+            border-top: 1px solid var(--border);
+            letter-spacing: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <section class="hero">
+        <div class="logo">◈</div>
+        <h1 class="title">GhostLink</h1>
+        <p class="subtitle">network</p>
+        <div class="scroll-hint">▼ scroll to explore</div>
+    </section>
+
+    <section class="section">
+        <h2 class="section-label">[ LIVE_ECOSYSTEM_VISUALIZER ]</h2>
+
+        <div class="map-container">
+            <svg id="mini-graph"></svg>
+
+            <!-- Stats -->
+            <div id="map-stats">
+                <div class="stat-chip">NODES <span id="mini-nodes">—</span></div>
+                <div class="stat-chip">EDGES <span id="mini-edges">—</span></div>
+                <div class="stat-chip">COMMUNITIES <span id="mini-comms">—</span></div>
+            </div>
+
+            <!-- Live badge -->
+            <div id="map-live-badge">● LIVE DATA</div>
+
+            <!-- Bottom controls -->
+            <div id="map-controls">
+                <button class="map-ctrl-btn" id="btn-reset-view">RESET VIEW</button>
+                <button class="map-ctrl-btn active" id="btn-toggle-names">NAMES ON</button>
+                <button class="map-ctrl-btn active" id="btn-toggle-hulls">HULLS ON</button>
+            </div>
+
+            <!-- Loading overlay -->
+            <div id="map-status">
+                <div class="status-dots">· · ·</div>
+                <div class="status-text" id="status-msg">Initializing nodes</div>
+            </div>
+        </div>
+
+        <!-- Sub-bar: hint + Visualize Your JSON -->
+        <div class="map-sub-bar">
+            <span class="map-hint">Drag to pan &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Click nodes to explore</span>
+            <a href="/visualizer" class="btn-vis-json">
+                <span class="vis-icon">◈</span> Visualize Your JSON
+            </a>
+        </div>
+    </section>
+
+    <section class="section">
+        <h2 style="text-align: center; margin-bottom: 40px; letter-spacing: 3px; font-size: 1.1rem;">How It Maps</h2>
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>01. Injection</h3>
+                <p>Enter a seed Discord invite. The GhostLink algorithm initializes a node at the point of entry.</p>
+            </div>
+            <div class="info-card">
+                <h3>02. Crawl</h3>
+                <p>The system identifies #partners and #self-promo channels, scraping outgoing invites to adjacent communities.</p>
+            </div>
+            <div class="info-card">
+                <h3>03. Recursive Edge-Mapping</h3>
+                <p>Every discovered server becomes a new node. Connections (edges) are drawn based on mutual promotions.</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="cta-container">
+        <p>Ready to map your own ecosystem?</p>
+        <a href="/launch" class="btn-begin">Begin</a>
+    </section>
+
+    <footer>GHOSTLINK // SECURE CONNECTION REQUIRED // 2024</footer>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const CDN_URL = 'https://cdn.jsdelivr.net/gh/virtuan4-max/ghostlinknetwork@main/ghostlinknetwork.json';
+
+const BASE_PALETTE = [
+    '#6ecbff','#f59e0b','#10b981','#e879f9','#fb923c',
+    '#a78bfa','#34d399','#f472b6','#60a5fa','#facc15',
+    '#4ade80','#38bdf8','#c084fc','#fb7185','#86efac',
+    '#67e8f9','#fde68a','#d8b4fe','#fca5a5','#bbf7d0',
+];
+
+const STATUS_STROKE = {
+    ok: null,
+    captcha: '#f59e0b',
+    forbidden: '#ef4444',
+    ghost: '#64748b',
+    expired: '#334155',
+};
+
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+let showLabels = true;
+let showHulls  = true;
+let zoomRef    = null;
+let svgRef     = null;
+let hullLayer  = null;
+let labelLayer = null;
+let simRef     = null;
+
+// ═══════════════════════════════════════════════════════════
+// UTIL
+// ═══════════════════════════════════════════════════════════
+function setStatus(msg) {
+    document.getElementById('status-msg').textContent = msg;
+}
+
+function cc(idx) {
+    return BASE_PALETTE[idx % BASE_PALETTE.length];
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMMUNITY DETECTION (label propagation, 40 iterations)
+// ═══════════════════════════════════════════════════════════
+function detectCommunities(nodes, edges) {
+    const adj = {};
+    nodes.forEach(n => { adj[n.id] = []; });
+    edges.forEach(e => {
+        const s = e.source?.id ?? e.source;
+        const t = e.target?.id ?? e.target;
+        if (adj[s] && adj[t]) { adj[s].push(t); adj[t].push(s); }
+    });
+    const label = {};
+    nodes.forEach(n => { label[n.id] = n.id; });
+    const ids = nodes.map(n => n.id);
+    for (let i = 0; i < 40; i++) {
+        const shuffled = [...ids].sort(() => Math.random() - .5);
+        let changed = false;
+        for (const id of shuffled) {
+            const nb = adj[id]; if (!nb.length) continue;
+            const freq = {};
+            for (const n of nb) { const l = label[n]; freq[l] = (freq[l] || 0) + 1; }
+            let best = label[id], bestScore = freq[label[id]] || 0;
+            for (const [l, cnt] of Object.entries(freq)) { if (cnt > bestScore) { best = l; bestScore = cnt; } }
+            if (best !== label[id]) { label[id] = best; changed = true; }
+        }
+        if (!changed) break;
+    }
+    const unique = [...new Set(Object.values(label))].sort();
+    const remap = {}; unique.forEach((l, i) => { remap[l] = i; });
+    const result = {};
+    nodes.forEach(n => { result[n.id] = remap[label[n.id]]; });
+    return result;
+}
+
+// ═══════════════════════════════════════════════════════════
+// HULL DRAWING
+// ═══════════════════════════════════════════════════════════
+function drawHulls(nodeData, hullLayerSel) {
+    const byComm = {};
+    for (const n of nodeData) {
+        const c = n.community ?? 0;
+        if (!byComm[c]) byComm[c] = [];
+        byComm[c].push([n.x, n.y]);
+    }
+
+    const hullData = Object.entries(byComm)
+        .filter(([, pts]) => pts.length >= 3)
+        .map(([c, pts]) => ({ community: +c, hull: d3.polygonHull(pts) }))
+        .filter(d => d.hull);
+
+    const sel = hullLayerSel.selectAll('.m-hull').data(hullData, d => d.community);
+
+    sel.enter().append('path')
+        .attr('class', 'm-hull')
+        .merge(sel)
+        .attr('d', d => 'M' + d.hull.map(p => p.join(',')).join('L') + 'Z')
+        .attr('fill',         d => cc(d.community))
+        .attr('stroke',       d => cc(d.community))
+        .attr('fill-opacity',   showHulls ? 0.045 : 0)
+        .attr('stroke-opacity', showHulls ? 0.22  : 0);
+
+    sel.exit().remove();
+}
+
+// ═══════════════════════════════════════════════════════════
+// AUTO FIT — zoom to contain all nodes, then bias toward seed
+// ═══════════════════════════════════════════════════════════
+function fitGraph(nodeData, W, H, targetNode) {
+    if (!zoomRef || !svgRef || !nodeData.length) return;
+
+    const xs = nodeData.map(n => n.x);
+    const ys = nodeData.map(n => n.y);
+    const x0 = Math.min(...xs), x1 = Math.max(...xs);
+    const y0 = Math.min(...ys), y1 = Math.max(...ys);
+    const gW = x1 - x0 || 1;
+    const gH = y1 - y0 || 1;
+
+    // Fit with generous padding so we can see the whole graph
+    const scale = Math.min(W / gW, H / gH) * 0.58;
+    const cx = (x0 + x1) / 2;
+    const cy = (y0 + y1) / 2;
+
+    let tx = W / 2 - cx * scale;
+    let ty = H / 2 - cy * scale;
+
+    // Nudge 25% toward the GhostLink/seed node if it exists
+    if (targetNode && Number.isFinite(targetNode.x) && Number.isFinite(targetNode.y)) {
+        const tnx = W / 2 - targetNode.x * scale;
+        const tny = H / 2 - targetNode.y * scale;
+        tx = tx * 0.75 + tnx * 0.25;
+        ty = ty * 0.75 + tny * 0.25;
+    }
+
+    svgRef.transition().duration(950).ease(d3.easeCubicInOut)
+        .call(zoomRef.transform, d3.zoomIdentity.translate(tx, ty).scale(scale));
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════════════════════
+function renderMiniGraph(data) {
+    const statusEl  = document.getElementById('map-status');
+    const container = document.querySelector('.map-container');
+    const W = container.clientWidth;
+    const H = container.clientHeight;
+
+    svgRef = d3.select('#mini-graph');
+    svgRef.selectAll('*').remove();
+
+    const nodeById = {};
+    data.nodes.forEach(n => { nodeById[n.id] = n; });
+
+    const links = data.edges
+        .filter(e => nodeById[e.source] && nodeById[e.target])
+        .map(e => ({ source: e.source, target: e.target }));
+
+    const communityOf = detectCommunities(data.nodes, links);
+    data.nodes.forEach(n => { n.community = communityOf[n.id] ?? 0; });
+
+    const numCommunities = new Set(Object.values(communityOf)).size;
+    const maxMembers     = d3.max(data.nodes, n => n.member_count || 1) || 1;
+    const rScale         = d3.scaleSqrt().domain([0, maxMembers]).range([5, 30]);
+
+    // Find GhostLink seed to center on after sim settles
+    const ghostNode = data.nodes.find(n =>
+        n.name && n.name.toLowerCase().includes('ghostlink')
+    ) || null;
+
+    const g = svgRef.append('g');
+    zoomRef = d3.zoom().scaleExtent([0.03, 10]).on('zoom', e => g.attr('transform', e.transform));
+    svgRef.call(zoomRef);
+
+    // Layer order: hulls → links → nodes → labels
+    hullLayer       = g.append('g').attr('class', 'hull-layer');
+    const linkLayer = g.append('g');
+    const nodeLayer = g.append('g');
+    labelLayer      = g.append('g').attr('class', 'label-layer');
+
+    // ── Links ──
+    const linkSel = linkLayer.selectAll('line')
+        .data(links)
+        .join('line')
+        .attr('class', d => {
+            const s = d.source?.id ?? d.source;
+            const t = d.target?.id ?? d.target;
+            return 'm-link' + (communityOf[s] === communityOf[t] ? ' m-intra' : '');
+        });
+
+    // ── Node data with radius ──
+    const nodeData = data.nodes.map(n => ({ ...n, r: rScale(n.member_count || 1) }));
+
+    const nodeSel = nodeLayer.selectAll('g')
+        .data(nodeData)
+        .join('g')
+        .attr('class', 'm-node')
+        .call(d3.drag()
+            .on('start', (e, d) => { if (!e.active) simRef.alphaTarget(0.3).restart(); d.fx = d.x; d.fy = d.y; })
+            .on('drag',  (e, d) => { d.fx = e.x; d.fy = e.y; })
+            .on('end',   (e, d) => { if (!e.active) simRef.alphaTarget(0); d.fx = null; d.fy = null; })
+        );
+
+    nodeSel.append('circle')
+        .attr('r',    d => d.r)
+        .attr('fill', d => cc(d.community) + '22')
+        .attr('stroke', d => STATUS_STROKE[d.status] || cc(d.community))
+        .attr('stroke-width', d => d.r > 20 ? 2 : 1.6)
+        .attr('stroke-dasharray', d => {
+            if (d.status === 'captcha' || d.status === 'forbidden') return '5 2';
+            if (d.status === 'ghost')   return '3 3';
+            if (d.status === 'expired') return '2 4';
+            return null;
+        });
+
+    // ── Labels ──
+    const MAX_LEN = 18;
+    const CW = 6, PAD = 4, LH = 14;
+
+    const labelSel = labelLayer.selectAll('g')
+        .data(nodeData)
+        .join('g')
+        .attr('class', 'label-group')
+        .style('display', showLabels ? null : 'none');
+
+    labelSel.each(function(d) {
+        d._label  = d.name.length > MAX_LEN ? d.name.slice(0, MAX_LEN - 1) + '…' : d.name;
+        d._labelW = d._label.length * CW + PAD * 2;
+    });
+
+    labelSel.append('rect')
+        .attr('class', 'm-label-bg')
+        .attr('x',      d => -d._labelW / 2)
+        .attr('y',      d => d.r + 5)
+        .attr('width',  d => d._labelW)
+        .attr('height', LH)
+        .attr('rx', 2);
+
+    labelSel.append('text')
+        .attr('class', 'm-label-txt')
+        .attr('y', d => d.r + 5 + LH / 2 + 3.5)
+        .text(d => d._label);
+
+    // ── Simulation ──
+    simRef = d3.forceSimulation(nodeData)
+        .force('link', d3.forceLink(links).id(d => d.id)
+            .distance(d => {
+                const sc = communityOf[d.source?.id ?? d.source];
+                const tc = communityOf[d.target?.id ?? d.target];
+                return sc === tc ? 100 : 340;
+            })
+            .strength(d => {
+                const sc = communityOf[d.source?.id ?? d.source];
+                const tc = communityOf[d.target?.id ?? d.target];
+                return sc === tc ? 0.7 : 0.08;
+            })
+        )
+        .force('charge', d3.forceManyBody()
+            .strength(d => -700 - (d.member_count / maxMembers) * 2000)
+            .distanceMax(1400))
+        .force('collision', d3.forceCollide(d => d.r + 8).strength(0.85))
+        .force('center', d3.forceCenter(W / 2, H / 2).strength(0.02))
+        .alphaDecay(0.011)
+        .velocityDecay(0.38)
+        .on('tick', () => {
+            linkSel
+                .attr('x1', d => d.source.x).attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+
+            nodeSel.attr('transform',  d => `translate(${d.x},${d.y})`);
+            labelSel.attr('transform', d => `translate(${d.x},${d.y})`);
+
+            drawHulls(nodeData, hullLayer);
+        })
+        .on('end', () => {
+            // Simulation settled — auto-fit and center on GhostLink
+            fitGraph(nodeData, W, H, ghostNode);
+        });
+
+    // ── Hide loading, show UI ──
+    statusEl.style.opacity = '0';
+    setTimeout(() => { statusEl.style.display = 'none'; }, 400);
+
+    document.getElementById('mini-nodes').textContent = data.nodes.length;
+    document.getElementById('mini-edges').textContent = data.edges.length;
+    document.getElementById('mini-comms').textContent = numCommunities;
+    document.getElementById('map-stats').classList.add('visible');
+    document.getElementById('map-live-badge').classList.add('visible');
+    document.getElementById('map-controls').classList.add('visible');
+
+    // ── Reset view ──
+    document.getElementById('btn-reset-view').addEventListener('click', () => {
+        fitGraph(nodeData, W, H, ghostNode);
+    });
+
+    // ── Toggle names ──
+    document.getElementById('btn-toggle-names').addEventListener('click', function() {
+        showLabels = !showLabels;
+        this.textContent = showLabels ? 'NAMES ON' : 'NAMES OFF';
+        this.classList.toggle('active', showLabels);
+        labelLayer.selectAll('.label-group').style('display', showLabels ? null : 'none');
+    });
+
+    // ── Toggle hulls ──
+    document.getElementById('btn-toggle-hulls').addEventListener('click', function() {
+        showHulls = !showHulls;
+        this.textContent = showHulls ? 'HULLS ON' : 'HULLS OFF';
+        this.classList.toggle('active', showHulls);
+        hullLayer.selectAll('.m-hull')
+            .attr('fill-opacity',   showHulls ? 0.045 : 0)
+            .attr('stroke-opacity', showHulls ? 0.22  : 0);
+    });
+}
+
+// ═══════════════════════════════════════════════════════════
+// FETCH + BOOT
+// ═══════════════════════════════════════════════════════════
+setStatus('Fetching live ecosystem data');
+
+fetch(CDN_URL)
+    .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        setStatus('Parsing graph data');
+        return r.json();
+    })
+    .then(data => {
+        setStatus('Rendering nodes');
+        renderMiniGraph(data);
+    })
+    .catch(err => {
+        document.getElementById('status-msg').textContent = 'NO DATA LINKED — ' + err.message;
+        document.querySelector('.status-dots').textContent = '✕';
+        document.querySelector('.status-dots').style.color = '#ef4444';
+        console.error('GhostLink mini-map error:', err);
+    });
+</script>
+</body>
+</html>

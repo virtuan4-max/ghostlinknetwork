@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Discord Ecosystem Map</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&display=swap');
+  :root {
+    --bg:#000; --sidebar-bg:#000; --accent:#6ecbff; --accent-glow:rgba(110,203,255,.3);
+    --text:#e2e8f0; --text-dim:#94a3b8; --border:rgba(110,203,255,.08);
+    --border-solid:rgba(110,203,255,.18); --font:'Courier New',monospace;
+    --input-bg:rgba(255,255,255,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);height:100vh;overflow:hidden;display:flex;flex-direction:column}
+  /* wrap header+main so nav+header+main stack vertically */
+
+  /* HEADER */
+  header{height:48px;padding:0 20px;border-bottom:1px solid var(--border-solid);display:flex;align-items:center;gap:16px;flex-shrink:0;z-index:20}
+  .logo{display:flex;align-items:center;gap:10px}
+  .logo-icon{width:22px;height:22px;border:1.5px solid var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px var(--accent-glow);animation:pulse 3s infinite}
+  .logo-icon::before{content:'';width:6px;height:6px;background:var(--accent);border-radius:50%;box-shadow:0 0 6px var(--accent)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 10px var(--accent-glow)}50%{box-shadow:0 0 20px var(--accent-glow),0 0 40px rgba(110,203,255,.15)}}
+  .logo-text{font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:700}
+  .header-stats{display:flex;gap:4px;margin-left:auto}
+  .stat-chip{padding:3px 10px;border:1px solid var(--border-solid);font-size:10px;color:var(--text-dim);letter-spacing:.08em;display:flex;gap:6px;align-items:center}
+  .stat-chip span{color:var(--accent);font-weight:700}
+  #btn-settings{background:none;border:1px solid var(--border-solid);color:var(--text-dim);width:32px;height:32px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;flex-shrink:0;padding:0}
+  #btn-settings:hover{border-color:var(--accent);color:var(--accent);box-shadow:0 0 10px var(--accent-glow)}
+  #btn-settings svg{width:16px;height:16px}
+
+  /* LAYOUT */
+  .main{display:flex;flex:1;overflow:hidden}
+  #graph-container{flex:1;position:relative;overflow:hidden}
+  svg#graph{width:100%;height:100%}
+
+  /* GRAPH ELEMENTS */
+  .link{stroke:rgba(110,203,255,.07);stroke-width:1.2}
+  .link.intra{stroke:rgba(110,203,255,.14)}
+  .link.highlighted{stroke:var(--accent);stroke-opacity:1;stroke-width:2.5;filter:drop-shadow(0 0 4px var(--accent))}
+  .hull{stroke-width:1.5;fill-opacity:.045;stroke-opacity:.28;stroke-dasharray:7 4}
+  .node circle{cursor:pointer;transition:filter .18s}
+  .node:hover circle{filter:brightness(1.5) drop-shadow(0 0 12px currentColor)}
+  .node.status-captcha  circle{stroke-dasharray:6 2.5;fill-opacity:.12}
+  .node.status-forbidden circle{stroke-dasharray:6 2.5;fill-opacity:.10}
+  .node.status-ghost    circle{stroke-dasharray:4 4;fill-opacity:.08;opacity:.7}
+  .node.status-expired  circle{stroke-dasharray:2 5;fill-opacity:.05;opacity:.5}
+  .node text{fill:#dde4ee;font-size:10.5px;font-family:var(--font);font-weight:700;text-anchor:middle;pointer-events:none}
+  .label-bg{fill:rgba(0,0,0,.82)}
+
+  /* LEGEND */
+  #legend{position:absolute;top:14px;left:14px;background:rgba(0,0,0,.88);border:1px solid var(--border-solid);padding:11px 13px;font-size:10px;display:flex;flex-direction:column;gap:6px;backdrop-filter:blur(8px);width:155px;box-sizing:border-box}
+  .legend-section-title{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);margin-top:3px}
+  .legend-section-title:first-child{margin-top:0}
+  .legend-item{display:flex;align-items:center;gap:8px;color:var(--text);font-size:10px;width:100%}
+  .legend-icon{width:20px;height:2px;flex-shrink:0}
+  .legend-dot-icon{width:10px;height:10px;border-radius:50%;border:1.5px solid;flex-shrink:0}
+  .legend-label{color:var(--text);font-size:10px}
+
+  /* CONTROLS */
+  #controls{position:absolute;bottom:14px;left:14px;display:flex;gap:6px}
+  .ctrl-btn{padding:6px 12px;background:rgba(0,0,0,.88);border:1px solid var(--border-solid);color:var(--text-dim);font-family:var(--font);font-size:10px;letter-spacing:.06em;cursor:pointer;transition:all .14s;backdrop-filter:blur(8px)}
+  .ctrl-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .ctrl-btn.hi{border-color:var(--accent);color:var(--accent);box-shadow:0 0 12px var(--accent-glow)}
+
+  /* TOOLTIP */
+  #tooltip{position:absolute;background:rgba(0,0,0,.96);border:1px solid var(--accent);padding:10px 13px;font-size:11px;font-family:var(--font);pointer-events:auto;opacity:0;transition:opacity .12s;max-width:250px;z-index:50;box-shadow:0 0 20px var(--accent-glow);line-height:1.65}
+  #tooltip strong{color:var(--accent);display:block;margin-bottom:3px;font-size:12px}
+  #tooltip .t-row{color:var(--text-dim);font-size:10px}
+  #tooltip .t-row b{color:var(--text)}
+  #tooltip .t-community{font-size:9px;letter-spacing:.1em;text-transform:uppercase;margin-top:3px;display:block}
+  #tooltip .t-status{font-size:9px;letter-spacing:.08em;text-transform:uppercase;display:block;margin-bottom:6px}
+  #tooltip .t-invite{display:block;margin-top:8px;padding:5px 10px;background:rgba(110,203,255,.07);border:1px solid rgba(110,203,255,.25);color:var(--accent);text-decoration:none;font-size:10px;text-align:center;transition:background .14s}
+  #tooltip .t-invite:hover{background:rgba(110,203,255,.15)}
+  #tooltip .t-invite.none{color:var(--text-dim);cursor:default}
+
+  /* SIDEBAR */
+  #sidebar{width:280px;border-left:1px solid var(--border-solid);background:var(--sidebar-bg);display:flex;flex-direction:column;overflow:hidden;flex-shrink:0}
+  .s-section{border-bottom:1px solid var(--border);flex-shrink:0}
+  .s-title{padding:9px 14px;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--text-dim);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  #drop-zone{margin:12px;border:1px dashed var(--border-solid);padding:16px 12px;text-align:center;cursor:pointer;transition:all .15s}
+  #drop-zone:hover,#drop-zone.drag-over{border-color:var(--accent);background:rgba(110,203,255,.04)}
+  #drop-zone .dz-icon{font-size:22px;margin-bottom:6px;opacity:.5}
+  #drop-zone .dz-label{font-size:10px;color:var(--text-dim);line-height:1.6}
+  #drop-zone .dz-label b{color:var(--accent)}
+  #file-input{display:none}
+  #file-card{display:none;margin:12px;padding:10px 12px;background:rgba(110,203,255,.05);border:1px solid rgba(110,203,255,.2)}
+  #file-card.visible{display:block}
+  #file-card .fc-name{font-size:11px;color:var(--accent);margin-bottom:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #file-card .fc-meta{font-size:10px;color:var(--text-dim)}
+  #file-card .fc-actions{display:flex;gap:6px;margin-top:8px}
+  #file-card button{flex:1;padding:4px 8px;background:transparent;border:1px solid var(--border-solid);color:var(--text-dim);font-family:var(--font);font-size:10px;cursor:pointer;transition:all .14s}
+  #file-card button:hover{border-color:var(--accent);color:var(--accent)}
+  #file-card .fc-remove:hover{border-color:#ef4444;color:#ef4444}
+  #search-wrap{padding:10px 12px;border-bottom:1px solid var(--border)}
+  #search{width:100%;background:var(--input-bg);border:1px solid var(--border-solid);padding:6px 10px;color:var(--text);font-family:var(--font);font-size:11px;outline:none;transition:border-color .14s}
+  #search:focus{border-color:var(--accent);box-shadow:0 0 8px var(--accent-glow)}
+  #search::placeholder{color:var(--text-dim)}
+  #node-info{padding:12px 14px;flex:1;overflow-y:auto}
+  #node-info::-webkit-scrollbar{width:3px}
+  #node-info::-webkit-scrollbar-thumb{background:var(--border-solid)}
+  .info-empty{color:var(--text-dim);font-size:11px;line-height:1.8}
+  .info-name{font-size:13px;font-weight:700;margin-bottom:10px;word-break:break-word}
+  .info-row{display:flex;justify-content:space-between;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--border);font-size:10.5px;gap:8px}
+  .info-row:last-child{border-bottom:none}
+  .info-label{color:var(--text-dim);flex-shrink:0}
+  .info-value{color:var(--text);text-align:right;word-break:break-all}
+  .invite-link{color:var(--accent);text-decoration:none}
+  .invite-link:hover{text-decoration:underline}
+  .conn-block{margin-top:10px}
+  .conn-header{font-size:9px;letter-spacing:.15em;text-transform:uppercase;color:var(--text-dim);margin-bottom:5px}
+  .conn-item{padding:5px 8px;border:1px solid var(--border);margin-bottom:3px;font-size:10px;cursor:pointer;transition:all .12s;display:flex;align-items:center;gap:5px}
+  .conn-item:hover{border-color:var(--accent);background:rgba(110,203,255,.04)}
+
+  /* SETTINGS MODAL */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+  .modal-overlay.open{display:flex}
+  #settings-box{background:#050508;border:1px solid var(--accent);width:660px;max-width:96vw;max-height:90vh;box-shadow:0 0 60px var(--accent-glow);display:flex;flex-direction:column}
+  .modal-header{padding:13px 18px;border-bottom:1px solid var(--border-solid);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+  .modal-header .mh-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.18em;text-transform:uppercase}
+  .modal-close{background:none;border:none;color:var(--text-dim);font-size:18px;cursor:pointer;line-height:1;padding:0 4px}
+  .modal-close:hover{color:var(--text)}
+  .settings-tabs{display:flex;border-bottom:1px solid var(--border-solid);flex-shrink:0;overflow-x:auto}
+  .stab{padding:9px 16px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:all .14s;background:none;border-top:none;border-left:none;border-right:none;font-family:var(--font);white-space:nowrap}
+  .stab:hover{color:var(--text)}
+  .stab.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .settings-body{flex:1;overflow-y:auto;padding:18px}
+  .settings-body::-webkit-scrollbar{width:3px}
+  .settings-body::-webkit-scrollbar-thumb{background:var(--border-solid)}
+  .tab-panel{display:none}
+  .tab-panel.active{display:block}
+  .sg{margin-bottom:22px}
+  .sg-title{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--border)}
+
+  /* badge next to setting label */
+  .badge{display:inline-block;padding:1px 5px;font-size:8px;letter-spacing:.06em;text-transform:uppercase;border-radius:2px;margin-left:5px;vertical-align:middle}
+  .badge-live{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.4);color:#10b981}
+  .badge-restart{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.35);color:#f59e0b}
+
+  .setting-row{display:grid;grid-template-columns:1fr 120px 64px;align-items:center;gap:10px;margin-bottom:10px}
+  .setting-label{font-size:10px;color:var(--text-dim);line-height:1.4}
+  .setting-label small{display:block;font-size:9px;color:rgba(148,163,184,.5);margin-top:2px}
+  input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--border-solid);outline:none;cursor:pointer;border-radius:2px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:var(--accent);border-radius:50%;box-shadow:0 0 6px var(--accent-glow);cursor:pointer}
+  input[type=range]::-moz-range-thumb{width:12px;height:12px;background:var(--accent);border-radius:50%;border:none;box-shadow:0 0 6px var(--accent-glow)}
+  .val-display{text-align:right;font-size:11px;color:var(--accent);font-weight:700;letter-spacing:.05em}
+  .toggle-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+  .toggle-label{font-size:10px;color:var(--text-dim)}
+  .toggle{width:34px;height:18px;background:var(--border-solid);border-radius:9px;cursor:pointer;position:relative;transition:background .2s;border:1px solid var(--border-solid);flex-shrink:0}
+  .toggle.on{background:rgba(110,203,255,.3);border-color:var(--accent)}
+  .toggle::after{content:'';position:absolute;top:2px;left:2px;width:12px;height:12px;background:var(--text-dim);border-radius:50%;transition:all .2s}
+  .toggle.on::after{left:18px;background:var(--accent)}
+
+  /* RESTART WARNING BANNER */
+  #restart-warn{display:none;margin:0 18px 14px;padding:8px 12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.35);color:#f59e0b;font-size:10px;letter-spacing:.04em;line-height:1.6}
+  #restart-warn.visible{display:block}
+
+  /* COMMUNITY COLORS */
+  #comm-colors-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-top:4px}
+  .comm-color-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid var(--border);background:rgba(255,255,255,.02)}
+  .comm-color-swatch{width:22px;height:22px;border-radius:50%;border:none;cursor:pointer;flex-shrink:0;padding:0;background:transparent}
+  .comm-color-swatch::-webkit-color-swatch-wrapper{padding:0;border-radius:50%}
+  .comm-color-swatch::-webkit-color-swatch{border-radius:50%;border:none}
+  .comm-color-label{font-size:10px;color:var(--text-dim);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .comm-color-reset{background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:11px;padding:0 2px;opacity:.5}
+  .comm-color-reset:hover{opacity:1;color:var(--accent)}
+  #no-communities-msg{color:var(--text-dim);font-size:11px;text-align:center;padding:20px;line-height:1.7}
+
+  /* Settings footer */
+  .settings-footer{padding:12px 18px;border-top:1px solid var(--border-solid);display:flex;gap:8px;justify-content:flex-end;flex-shrink:0}
+  .s-btn{padding:7px 18px;font-family:var(--font);font-size:10px;letter-spacing:.08em;cursor:pointer;transition:all .14s}
+  .s-btn-ghost{background:transparent;border:1px solid var(--border-solid);color:var(--text-dim)}
+  .s-btn-ghost:hover{border-color:var(--text-dim);color:var(--text)}
+  .s-btn-danger{background:transparent;border:1px solid rgba(239,68,68,.4);color:#ef4444;margin-right:auto}
+  .s-btn-danger:hover{background:rgba(239,68,68,.1)}
+  .s-btn-primary{background:rgba(110,203,255,.1);border:1px solid var(--accent);color:var(--accent)}
+  .s-btn-primary:hover{background:rgba(110,203,255,.2);box-shadow:0 0 12px var(--accent-glow)}
+
+  /* NAV BAR */
+  #ghostlink-nav{height:38px;padding:0 16px;border-bottom:1px solid var(--border-solid);display:flex;align-items:center;gap:12px;flex-shrink:0;background:var(--bg);z-index:30;position:relative}
+  #ghostlink-nav .gl-back{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);text-decoration:none;transition:color .14s}
+  #ghostlink-nav .gl-back:hover{color:var(--accent)}
+  #ghostlink-nav .gl-brand{font-size:10px;letter-spacing:.2em;color:var(--accent);font-weight:700;text-transform:uppercase}
+  #ghostlink-nav .gl-sep{color:var(--border-solid)}
+  #session-badge{margin-left:auto;font-size:9px;letter-spacing:.1em;color:#10b981;border:1px solid rgba(16,185,129,.3);padding:2px 9px;background:rgba(16,185,129,.07);display:none}
+  #session-badge.visible{display:block}
+
+  /* EXPORT MODAL */
+  #export-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+  #export-modal.open{display:flex}
+  #export-box{background:#050505;border:1px solid var(--accent);width:540px;max-width:90vw;box-shadow:0 0 50px var(--accent-glow);display:flex;flex-direction:column}
+  #export-header{padding:12px 16px;border-bottom:1px solid var(--border-solid);display:flex;align-items:center;justify-content:space-between}
+  #export-header .eh-title{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.15em;text-transform:uppercase}
+  #export-close{background:none;border:none;color:var(--text-dim);font-size:16px;cursor:pointer}
+  #export-close:hover{color:var(--text)}
+  #export-filters{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .ef-label{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--text-dim);margin-right:4px}
+  .filter-btn{padding:3px 10px;border:1px solid var(--border-solid);background:transparent;color:var(--text-dim);font-family:var(--font);font-size:10px;cursor:pointer;transition:all .12s}
+  .filter-btn.active,.filter-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(110,203,255,.06)}
+  #export-textarea{margin:12px 16px;background:rgba(255,255,255,.02);border:1px solid var(--border-solid);color:var(--text);font-family:var(--font);font-size:11px;padding:10px;height:270px;resize:none;outline:none;line-height:1.8}
+  #export-footer{padding:10px 16px 14px;display:flex;gap:8px;align-items:center}
+  #export-count{font-size:10px;color:var(--text-dim);margin-right:auto}
+  .export-btn{padding:7px 16px;border:1px solid var(--accent);background:rgba(110,203,255,.07);color:var(--accent);font-family:var(--font);font-size:10px;cursor:pointer;transition:all .14s}
+  .export-btn:hover{background:rgba(110,203,255,.16)}
+  .export-btn.copied{border-color:#4ade80;color:#4ade80;background:rgba(74,222,128,.07)}
+</style>
+</head>
+<body>
+
+<!-- GhostLink Nav -->
+<div id="ghostlink-nav">
+  <span class="gl-brand">◈ GhostLink</span>
+  <span class="gl-sep">/</span>
+  <span style="font-size:10px;color:var(--text-dim);letter-spacing:.1em">Ecosystem Visualizer</span>
+  <span id="session-badge">● SESSION DATA</span>
+  <a href="/launch" class="gl-back" style="margin-left:12px">← New Run</a>
+  <a href="/" class="gl-back">Home</a>
+</div>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <span class="logo-text">Discord Ecosystem Map</span>
+  </div>
+  <div class="header-stats">
+    <div class="stat-chip">NODES <span id="stat-nodes">—</span></div>
+    <div class="stat-chip">EDGES <span id="stat-edges">—</span></div>
+    <div class="stat-chip">COMMUNITIES <span id="stat-communities">—</span></div>
+  </div>
+  <button id="btn-settings" title="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="3"/>
+      <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+    </svg>
+  </button>
+</header>
+
+<div class="main">
+  <div id="graph-container">
+    <svg id="graph"></svg>
+    <div id="tooltip"></div>
+    <div id="legend">
+      <div class="legend-section-title">Node Status</div>
+      <div class="legend-item"><div class="legend-dot-icon" style="border-color:#6ecbff;background:rgba(110,203,255,.2)"></div><div class="legend-label">Reachable</div></div>
+      <div class="legend-item"><div class="legend-icon" style="border-top:2px dashed #f59e0b"></div><div class="legend-label">Captcha</div></div>
+      <div class="legend-item"><div class="legend-icon" style="border-top:2px dashed #ef4444"></div><div class="legend-label">Forbidden</div></div>
+      <div class="legend-item"><div class="legend-icon" style="border-top:2px dashed #64748b"></div><div class="legend-label">Ghost</div></div>
+      <div class="legend-item"><div class="legend-icon" style="border-top:2px dotted #475569"></div><div class="legend-label">Expired</div></div>
+      <div class="legend-section-title">Graph</div>
+      <div class="legend-label" style="color:var(--text-dim);font-size:9px;line-height:1.6">Size = member count<br>Color = community</div>
+    </div>
+    <div id="controls">
+      <button class="ctrl-btn" id="btn-reset">RESET VIEW</button>
+      <button class="ctrl-btn" id="btn-freeze">FREEZE</button>
+      <button class="ctrl-btn hi" id="btn-export">EXPORT INVITES</button>
+    </div>
+  </div>
+
+  <div id="sidebar">
+    <div class="s-section">
+      <div class="s-title"><span>Data Source</span></div>
+      <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <div class="dz-icon">&#x25A3;</div>
+        <div class="dz-label"><b>Click to load</b> or drag &amp; drop<br>ecosystem.json</div>
+      </div>
+      <input type="file" id="file-input" accept=".json">
+      <div id="file-card">
+        <div class="fc-name" id="fc-name">—</div>
+        <div class="fc-meta" id="fc-meta">—</div>
+        <div class="fc-actions">
+          <button id="btn-reload-file">&#x21BA; Reload</button>
+          <button class="fc-remove" id="btn-remove-file">&#x2715; Remove</button>
+        </div>
+      </div>
+    </div>
+    <div id="search-wrap">
+      <input type="text" id="search" placeholder="Search servers..." autocomplete="off">
+    </div>
+    <div class="s-title" style="border-bottom:1px solid var(--border)">
+      <span>Selected Node</span>
+      <span id="selected-community" style="font-size:9px;letter-spacing:.1em"></span>
+    </div>
+    <div id="node-info"><p class="info-empty">Load ecosystem.json to begin.<br><br>Click any node to inspect its connections and invite link.</p></div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div class="modal-overlay" id="settings-modal">
+  <div id="settings-box">
+    <div class="modal-header">
+      <span class="mh-title">Render Settings</span>
+      <button class="modal-close" id="settings-close">&#x2715;</button>
+    </div>
+    <div class="settings-tabs">
+      <button class="stab active" data-tab="display">Display</button>
+      <button class="stab" data-tab="community">Community</button>
+      <button class="stab" data-tab="nodes">Nodes</button>
+      <button class="stab" data-tab="forces">Forces</button>
+      <button class="stab" data-tab="simulation">Simulation</button>
+      <button class="stab" data-tab="colors">Colors</button>
+    </div>
+    <div class="settings-body">
+      <div id="restart-warn">&#x26A0; Some changed settings require restarting the simulation. The layout will re-randomize.</div>
+
+      <!-- DISPLAY TAB (all live) -->
+      <div class="tab-panel active" id="tab-display">
+        <div class="sg">
+          <div class="sg-title">Visibility</div>
+          <div class="toggle-row"><div class="toggle-label">Show node labels <span class="badge badge-live">live</span></div><div class="toggle on" id="t-show-labels" data-key="showLabels"></div></div>
+          <div class="toggle-row"><div class="toggle-label">Show status rings on unreachable nodes <span class="badge badge-live">live</span></div><div class="toggle on" id="t-show-ring" data-key="showRing"></div></div>
+          <div class="toggle-row"><div class="toggle-label">Show community hulls <span class="badge badge-live">live</span></div><div class="toggle on" id="t-show-hulls" data-key="showHulls"></div></div>
+          <div class="toggle-row"><div class="toggle-label">Show directional arrows <span class="badge badge-live">live</span></div><div class="toggle on" id="t-show-arrows" data-key="showArrows"></div></div>
+          <div class="toggle-row"><div class="toggle-label">Brighten intra-community links <span class="badge badge-live">live</span></div><div class="toggle on" id="t-intra-bright" data-key="intraBright"></div></div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Opacity</div>
+          <div class="setting-row">
+            <div class="setting-label">Link opacity <span class="badge badge-live">live</span><small>Brightness of connection lines</small></div>
+            <input type="range" id="s-link-opacity" data-key="linkOpacity" min="0.01" max="0.5" step="0.01" value="0.14">
+            <div class="val-display" id="v-link-opacity">0.14</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Hull fill opacity <span class="badge badge-live">live</span><small>Community background fill</small></div>
+            <input type="range" id="s-hull-opacity" data-key="hullOpacity" min="0.01" max="0.3" step="0.005" value="0.045">
+            <div class="val-display" id="v-hull-opacity">0.045</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMMUNITY TAB -->
+      <div class="tab-panel" id="tab-community">
+        <div class="sg">
+          <div class="sg-title">Label Propagation</div>
+          <div class="setting-row">
+            <div class="setting-label">Iterations <span class="badge badge-restart">restart</span><small>More = more stable communities, slower startup</small></div>
+            <input type="range" id="s-lp-iter" data-key="lpIter" min="5" max="100" step="5" value="40">
+            <div class="val-display" id="v-lp-iter">40</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Hull Display</div>
+          <div class="setting-row">
+            <div class="setting-label">Min nodes for hull <span class="badge badge-live">live</span><small>Communities smaller than this get no outline</small></div>
+            <input type="range" id="s-hull-min" data-key="hullMin" min="2" max="10" step="1" value="3">
+            <div class="val-display" id="v-hull-min">3</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- NODES TAB -->
+      <div class="tab-panel" id="tab-nodes">
+        <div class="sg">
+          <div class="sg-title">Node Size (by member count)</div>
+          <div class="setting-row">
+            <div class="setting-label">Min radius px <span class="badge badge-restart">restart</span><small>Smallest node</small></div>
+            <input type="range" id="s-r-min" data-key="rMin" min="4" max="20" step="1" value="8">
+            <div class="val-display" id="v-r-min">8</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Max radius px <span class="badge badge-restart">restart</span><small>Largest node</small></div>
+            <input type="range" id="s-r-max" data-key="rMax" min="15" max="80" step="1" value="38">
+            <div class="val-display" id="v-r-max">38</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Labels</div>
+          <div class="setting-row">
+            <div class="setting-label">Max label length <span class="badge badge-live">live</span><small>Characters before truncating</small></div>
+            <input type="range" id="s-label-len" data-key="labelLen" min="6" max="40" step="1" value="22">
+            <div class="val-display" id="v-label-len">22</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- FORCES TAB -->
+      <div class="tab-panel" id="tab-forces">
+        <div class="sg">
+          <div class="sg-title">Link Forces</div>
+          <div class="setting-row">
+            <div class="setting-label">Intra-community link distance px <span class="badge badge-restart">restart</span><small>How close linked nodes within same community sit</small></div>
+            <input type="range" id="s-link-intra-dist" data-key="linkIntraDist" min="30" max="300" step="10" value="100">
+            <div class="val-display" id="v-link-intra-dist">100</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Inter-community link distance px <span class="badge badge-restart">restart</span><small>How far cross-community links stretch</small></div>
+            <input type="range" id="s-link-inter-dist" data-key="linkInterDist" min="100" max="800" step="25" value="350">
+            <div class="val-display" id="v-link-inter-dist">350</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Intra-community strength <span class="badge badge-restart">restart</span><small>Pull force within a community (0–1)</small></div>
+            <input type="range" id="s-link-intra-str" data-key="linkIntraStr" min="0.05" max="1" step="0.05" value="0.7">
+            <div class="val-display" id="v-link-intra-str">0.7</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Inter-community strength <span class="badge badge-restart">restart</span><small>Pull force between communities (keep low!)</small></div>
+            <input type="range" id="s-link-inter-str" data-key="linkInterStr" min="0.01" max="0.5" step="0.01" value="0.08">
+            <div class="val-display" id="v-link-inter-str">0.08</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Repulsion</div>
+          <div class="setting-row">
+            <div class="setting-label">Base charge (small nodes) <span class="badge badge-restart">restart</span><small>Negative = repulsion</small></div>
+            <input type="range" id="s-charge-min" data-key="chargeMin" min="-3000" max="-100" step="100" value="-900">
+            <div class="val-display" id="v-charge-min">-900</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Max charge (large nodes) <span class="badge badge-restart">restart</span><small>Extra repulsion for big servers</small></div>
+            <input type="range" id="s-charge-max" data-key="chargeMax" min="-8000" max="-500" step="100" value="-3500">
+            <div class="val-display" id="v-charge-max">-3500</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Charge distance max px <span class="badge badge-restart">restart</span><small>How far repulsion reaches</small></div>
+            <input type="range" id="s-charge-dist" data-key="chargeDist" min="200" max="3000" step="100" value="1400">
+            <div class="val-display" id="v-charge-dist">1400</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Cluster Gravity</div>
+          <div class="setting-row">
+            <div class="setting-label">Gravity strength <span class="badge badge-restart">restart</span><small>Pull toward community center</small></div>
+            <input type="range" id="s-cluster-str" data-key="clusterStr" min="0" max="0.5" step="0.01" value="0.14">
+            <div class="val-display" id="v-cluster-str">0.14</div>
+          </div>
+        </div>
+        <div class="sg">
+          <div class="sg-title">Collision</div>
+          <div class="setting-row">
+            <div class="setting-label">Padding around nodes px <span class="badge badge-restart">restart</span><small>Minimum gap between node edges</small></div>
+            <input type="range" id="s-collision-pad" data-key="collisionPad" min="5" max="150" step="5" value="50">
+            <div class="val-display" id="v-collision-pad">50</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SIMULATION TAB -->
+      <div class="tab-panel" id="tab-simulation">
+        <div class="sg">
+          <div class="sg-title">Simulation Behavior</div>
+          <div class="setting-row">
+            <div class="setting-label">Alpha decay <span class="badge badge-restart">restart</span><small>Lower = longer run, better spread</small></div>
+            <input type="range" id="s-alpha-decay" data-key="alphaDecay" min="0.001" max="0.05" step="0.001" value="0.011">
+            <div class="val-display" id="v-alpha-decay">0.011</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Velocity decay <span class="badge badge-restart">restart</span><small>Higher = less bouncy</small></div>
+            <input type="range" id="s-vel-decay" data-key="velDecay" min="0.1" max="0.9" step="0.01" value="0.38">
+            <div class="val-display" id="v-vel-decay">0.38</div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-label">Centering strength <span class="badge badge-restart">restart</span><small>Keeps graph near screen center</small></div>
+            <input type="range" id="s-center-str" data-key="centerStr" min="0" max="0.1" step="0.002" value="0.018">
+            <div class="val-display" id="v-center-str">0.018</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COLORS TAB -->
+      <div class="tab-panel" id="tab-colors">
+        <div class="sg">
+          <div class="sg-title">Community Colors <span class="badge badge-live">live</span></div>
+          <p style="font-size:10px;color:var(--text-dim);margin-bottom:12px;line-height:1.6">Click a color swatch to change that community's color. Changes apply instantly without restarting the simulation.</p>
+          <div id="comm-colors-grid">
+            <p id="no-communities-msg">Load a graph first to see communities.</p>
+          </div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="s-btn s-btn-ghost" id="btn-reset-all-colors" style="width:100%;text-align:center">Reset All Colors to Defaults</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-footer">
+      <button class="s-btn s-btn-danger" id="s-btn-reset-defaults">Reset All Defaults</button>
+      <button class="s-btn s-btn-ghost" id="s-btn-close">Close</button>
+      <button class="s-btn s-btn-primary" id="s-btn-apply">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT MODAL -->
+<div id="export-modal">
+  <div id="export-box">
+    <div id="export-header">
+      <span class="eh-title">Export Invite Links</span>
+      <button id="export-close">&#x2715;</button>
+    </div>
+    <div id="export-filters">
+      <span class="ef-label">Filter:</span>
+      <button class="filter-btn active" data-status="all">All</button>
+      <button class="filter-btn" data-status="ok">Reachable</button>
+      <button class="filter-btn" data-status="captcha">Captcha</button>
+      <button class="filter-btn" data-status="forbidden">Forbidden</button>
+      <button class="filter-btn" data-status="ghost">Ghost</button>
+    </div>
+    <textarea id="export-textarea" readonly spellcheck="false"></textarea>
+    <div id="export-footer">
+      <span id="export-count">0 links</span>
+      <button class="export-btn" id="btn-copy-list">COPY ALL</button>
+      <button class="export-btn" id="btn-download-list">DOWNLOAD .TXT</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════════════════
+// SETTINGS — Physics vs Visual classification
+// Physics settings require a full sim restart.
+// Visual settings apply live without touching the simulation.
+// ══════════════════════════════════════════════════════════
+
+const PHYSICS_KEYS = new Set([
+  'lpIter','rMin','rMax',
+  'linkIntraDist','linkInterDist','linkIntraStr','linkInterStr',
+  'chargeMin','chargeMax','chargeDist','clusterStr','collisionPad',
+  'alphaDecay','velDecay','centerStr',
+]);
+const DEFAULTS = {
+  // Community
+  lpIter:40, hullMin:3,
+  // Nodes
+  rMin:8, rMax:38, labelLen:22,
+  // Links
+  linkIntraDist:100, linkInterDist:350, linkIntraStr:0.7, linkInterStr:0.08,
+  // Charge
+  chargeMin:-900, chargeMax:-3500, chargeDist:1400,
+  // Other forces
+  clusterStr:0.14, collisionPad:50,
+  // Sim
+  alphaDecay:0.011, velDecay:0.38, centerStr:0.018,
+  // Visual
+  showHulls:true, showLabels:true, showRing:true,
+  showArrows:true, intraBright:true,
+  linkOpacity:0.5, hullOpacity:0.3,
+};
+
+let S = {...DEFAULTS};
+// Pending = what's in the UI, not yet applied
+let P = {...DEFAULTS};
+
+// ══════════════════════════════════════════════════════════
+// PALETTE & COLORS
+// ══════════════════════════════════════════════════════════
+const BASE_PALETTE = [
+  '#6ecbff','#f59e0b','#10b981','#e879f9','#fb923c',
+  '#a78bfa','#34d399','#f472b6','#60a5fa','#facc15',
+  '#4ade80','#38bdf8','#c084fc','#fb7185','#86efac',
+  '#67e8f9','#fde68a','#d8b4fe','#fca5a5','#bbf7d0',
+];
+let customColors = {}; // communityIdx -> hex color override
+
+function cc(idx) {
+  return customColors[idx] ?? BASE_PALETTE[idx % BASE_PALETTE.length];
+}
+
+const STATUS_STROKE = { ok:null, captcha:'#f59e0b', forbidden:'#ef4444', ghost:'#64748b', expired:'#334155' };
+
+// ══════════════════════════════════════════════════════════
+// COMMUNITY DETECTION
+// ══════════════════════════════════════════════════════════
+function detectCommunities(nodes, edges) {
+  const adj = {};
+  nodes.forEach(n => { adj[n.id] = []; });
+  edges.forEach(e => {
+    const s = typeof e.source==='object'?e.source.id:e.source;
+    const t = typeof e.target==='object'?e.target.id:e.target;
+    if (adj[s]&&adj[t]) { adj[s].push(t); adj[t].push(s); }
+  });
+  const label = {};
+  nodes.forEach(n => { label[n.id] = n.id; });
+  const ids = nodes.map(n => n.id);
+  for (let i=0; i<S.lpIter; i++) {
+    const shuffled = [...ids].sort(()=>Math.random()-.5);
+    let changed = false;
+    for (const id of shuffled) {
+      const nb = adj[id]; if (!nb.length) continue;
+      const freq = {};
+      for (const n of nb) { const l=label[n]; freq[l]=(freq[l]||0)+1; }
+      let best=label[id], bestScore=freq[label[id]]||0;
+      for (const [l,cnt] of Object.entries(freq)) { if(cnt>bestScore){best=l;bestScore=cnt;} }
+      if (best!==label[id]) { label[id]=best; changed=true; }
+    }
+    if (!changed) break;
+  }
+  const unique=[...new Set(Object.values(label))].sort();
+  const remap={}; unique.forEach((l,i)=>{remap[l]=i;});
+  const result={};
+  nodes.forEach(n=>{result[n.id]=remap[label[n.id]];});
+  return result;
+}
+
+// ══════════════════════════════════════════════════════════
+// CLUSTER GRAVITY FORCE
+// ══════════════════════════════════════════════════════════
+function forceCluster(communityOf, strength) {
+  let nodes;
+  function force(alpha) {
+    const sum={}, count={};
+    for (const n of nodes) {
+      const c=communityOf[n.id]; if(c===undefined) continue;
+      if(!sum[c]) sum[c]={x:0,y:0};
+      sum[c].x+=n.x; sum[c].y+=n.y; count[c]=(count[c]||0)+1;
+    }
+    const center={};
+    for (const c in sum) center[c]={x:sum[c].x/count[c],y:sum[c].y/count[c]};
+    for (const n of nodes) {
+      const c=communityOf[n.id]; if(c===undefined||!center[c]) continue;
+      n.vx+=(center[c].x-n.x)*strength*alpha;
+      n.vy+=(center[c].y-n.y)*strength*alpha;
+    }
+  }
+  force.initialize=_n=>{nodes=_n;};
+  return force;
+}
+
+// ══════════════════════════════════════════════════════════
+// STATE
+// ══════════════════════════════════════════════════════════
+let graphData=null, simulation=null, frozen=false;
+let linkSel, nodeSel, hullSel, hullLayer, zoom;
+let currentLinks=[], currentNodeById={}, currentCommunityOf={};
+let currentNodeData=[];
+
+// ══════════════════════════════════════════════════════════
+// FILE HANDLING
+// ══════════════════════════════════════════════════════════
+function loadJSON(file) {
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      graphData = JSON.parse(ev.target.result);
+      graphData._filename = file.name;
+      showFileCard(file.name, graphData);
+      renderGraph(graphData);
+    } catch(err) { alert('Invalid JSON: '+err.message); }
+  };
+  reader.readAsText(file);
+  loadSettingsIntoUI()
+  
+}
+
+function showFileCard(name, data) {
+  document.getElementById('drop-zone').style.display='none';
+  document.getElementById('file-card').classList.add('visible');
+  document.getElementById('fc-name').textContent=name;
+  document.getElementById('fc-meta').textContent=`${data.nodes?.length??0} servers · ${data.edges?.length??0} connections`;
+}
+
+function removeFile() {
+  graphData=null;
+  document.getElementById('drop-zone').style.display='';
+  document.getElementById('file-card').classList.remove('visible');
+  document.getElementById('file-input').value='';
+  ['stat-nodes','stat-edges','stat-communities'].forEach(id=>document.getElementById(id).textContent='—');
+  document.getElementById('node-info').innerHTML='<p class="info-empty">Load ecosystem.json to begin.<br><br>Click any node to inspect connections and invite links.</p>';
+  d3.select('#graph').selectAll('*').remove();
+  if(simulation){simulation.stop();simulation=null;}
+  buildColorGrid();
+}
+
+document.getElementById('file-input').addEventListener('change',e=>{if(e.target.files[0])loadJSON(e.target.files[0]);});
+document.getElementById('btn-remove-file').addEventListener('click',removeFile);
+document.getElementById('btn-reload-file').addEventListener('click',()=>{if(graphData)renderGraph(graphData);});
+const dz=document.getElementById('drop-zone');
+dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('drag-over');});
+dz.addEventListener('dragleave',()=>dz.classList.remove('drag-over'));
+dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('drag-over');if(e.dataTransfer.files[0])loadJSON(e.dataTransfer.files[0]);});
+
+// ══════════════════════════════════════════════════════════
+// RENDER GRAPH
+// ══════════════════════════════════════════════════════════
+function renderGraph(data) {
+  
+  if(simulation) simulation.stop();
+  document.getElementById('stat-nodes').textContent=data.nodes.length;
+  document.getElementById('stat-edges').textContent=data.edges.length;
+
+  const svg=d3.select('#graph');
+  svg.selectAll('*').remove();
+
+  const container=document.getElementById('graph-container');
+  const W=container.clientWidth, H=container.clientHeight;
+
+  const nodeById={};
+  data.nodes.forEach(n=>{nodeById[n.id]=n;});
+  currentNodeById=nodeById;
+
+  const links=data.edges
+    .filter(e=>nodeById[e.source]&&nodeById[e.target])
+    .map(e=>({source:e.source,target:e.target,channel:e.channel}));
+  currentLinks=links;
+
+  const communityOf=detectCommunities(data.nodes,links);
+  currentCommunityOf=communityOf;
+  data.nodes.forEach(n=>{n.community=communityOf[n.id]??0;});
+  document.getElementById('stat-communities').textContent=new Set(Object.values(communityOf)).size;
+
+  const maxMembers=d3.max(data.nodes,n=>n.member_count||1)||1;
+  const rScale=d3.scaleSqrt().domain([0,maxMembers]).range([S.rMin,S.rMax]);
+  const chargeScale=d3.scaleSqrt().domain([0,maxMembers]).range([S.chargeMin,S.chargeMax]);
+
+  function isIntra(e) {
+    const s=typeof e.source==='object'?e.source.id:e.source;
+    const t=typeof e.target==='object'?e.target.id:e.target;
+    return communityOf[s]===communityOf[t];
+  }
+
+  const g=svg.append('g');
+  zoom=d3.zoom().scaleExtent([0.04,8]).on('zoom',e=>g.attr('transform',e.transform));
+  svg.call(zoom);
+
+  const defs=svg.append('defs');
+  if(S.showArrows){
+    defs.append('marker')
+      .attr('id','arrow').attr('viewBox','0 -4 8 8').attr('refX',10)
+      .attr('markerWidth',5).attr('markerHeight',5).attr('orient','auto')
+      .append('path').attr('d','M0,-4L8,0L0,4').attr('fill','rgba(110,203,255,0.2)');
+  }
+
+  hullLayer=g.append('g').attr('class','hull-layer');
+
+  linkSel=g.append('g').selectAll('.link')
+    .data(links).enter().append('line')
+    .attr('class',d=>'link'+(S.intraBright&&isIntra(d)?' intra':''))
+    .attr('stroke-opacity',d=>S.intraBright&&isIntra(d)?S.linkOpacity:S.linkOpacity*0.5)
+    .attr('marker-end',S.showArrows?'url(#arrow)':null);
+
+  const nodeData=data.nodes.map(n=>({
+    ...n, r:rScale(n.member_count||1), community:communityOf[n.id]??0
+  }));
+  currentNodeData=nodeData;
+
+  nodeSel=g.append('g').selectAll('.node')
+    .data(nodeData).enter().append('g')
+    .attr('class',d=>'node'+(d.status&&d.status!=='ok'?` status-${d.status}`:''))
+    .call(d3.drag()
+      .on('start',(ev,d)=>{if(!frozen&&!ev.active)simulation.alphaTarget(0.25).restart();d.fx=d.x;d.fy=d.y;})
+      .on('drag', (ev,d)=>{d.fx=ev.x;d.fy=ev.y;})
+      .on('end',  (ev,d)=>{if(!frozen&&!ev.active)simulation.alphaTarget(0);if(!frozen){d.fx=null;d.fy=null;}})
+    )
+    .on('click',    (ev,d)=>{ev.stopPropagation();showNodeInfo(d,links,nodeById);highlightNode(d.id,links,communityOf);})
+    .on('mouseover',(ev,d)=>showTooltip(ev,d))
+    .on('mousemove',ev=>moveTooltip(ev))
+    .on('mouseout', ev=>{if(!document.getElementById('tooltip').contains(ev.relatedTarget))document.getElementById('tooltip').style.opacity=0;});
+
+  // Main circle
+  nodeSel.append('circle')
+    .attr('class','main-circle')
+    .attr('r',d=>d.r)
+    .attr('fill',d=>cc(d.community)+(d.status&&d.status!=='ok'?'12':'22'))
+    .attr('stroke',d=>(!d.status||d.status==='ok')?cc(d.community)+'cc':STATUS_STROKE[d.status]||'#64748b')
+    .attr('stroke-width',d=>d.r>22?2:1.5);
+
+  // Status ring
+  const statusRings=nodeSel.filter(d=>d.status&&d.status!=='ok').append('circle')
+    .attr('class','status-ring')
+    .attr('r',d=>d.r+5).attr('fill','none')
+    .attr('stroke',d=>STATUS_STROKE[d.status]||'#64748b').attr('stroke-width',1)
+    .attr('stroke-dasharray',d=>({captcha:'5 2',forbidden:'5 2',ghost:'3 4',expired:'2 6'})[d.status]||'4 3')
+    .attr('stroke-opacity',0.55);
+  if(!S.showRing) statusRings.style('display','none');
+
+  // Labels
+  const CW=6.5,LH=15,PAD=5;
+  const labelG=nodeSel.append('g').attr('class','label-group');
+  labelG.each(function(d){
+    d._label=d.name.length>S.labelLen?d.name.slice(0,S.labelLen-1)+'…':d.name;
+    d._labelW=d._label.length*CW+PAD*2;
+  });
+  labelG.append('rect').attr('class','label-bg')
+    .attr('x',d=>-d._labelW/2).attr('y',d=>d.r+7)
+    .attr('width',d=>d._labelW).attr('height',LH).attr('rx',3);
+  labelG.append('text').attr('y',d=>d.r+7+LH/2+4).text(d=>d._label);
+  if(!S.showLabels) labelG.style('display','none');
+
+  simulation=d3.forceSimulation(nodeData)
+    .force('link',d3.forceLink(links).id(d=>d.id)
+      .distance(d=>isIntra(d)?S.linkIntraDist:S.linkInterDist)
+      .strength(d=>isIntra(d)?S.linkIntraStr:S.linkInterStr))
+    .force('charge',d3.forceManyBody()
+      .strength(d=>chargeScale(d.member_count||0))
+      .distanceMin(15).distanceMax(S.chargeDist))
+    .force('cluster',forceCluster(communityOf,S.clusterStr))
+    .force('collision',d3.forceCollide(d=>d.r+S.collisionPad).strength(0.85))
+    .force('x',d3.forceX(W/2).strength(S.centerStr))
+    .force('y',d3.forceY(H/2).strength(S.centerStr))
+    .alphaDecay(S.alphaDecay).velocityDecay(S.velDecay)
+    .on('tick',()=>{
+      linkSel
+        .attr('x1',d=>d.source.x).attr('y1',d=>d.source.y)
+        .attr('x2',d=>{const dx=d.target.x-d.source.x,dy=d.target.y-d.source.y,dist=Math.sqrt(dx*dx+dy*dy)||1;return d.target.x-dx/dist*(d.target.r+2);})
+        .attr('y2',d=>{const dx=d.target.x-d.source.x,dy=d.target.y-d.source.y,dist=Math.sqrt(dx*dx+dy*dy)||1;return d.target.y-dy/dist*(d.target.r+2);});
+      nodeSel.attr('transform',d=>`translate(${d.x},${d.y})`);
+      if(S.showHulls) drawHulls(); else hullLayer.selectAll('*').remove();
+    });
+
+  svg.on('click',(event)=>{
+    if (event.target !== svg.node()) return;
+    showNodeInfo(null);
+    linkSel.classed('highlighted',false);
+    nodeSel.selectAll('circle').attr('stroke-opacity',null).attr('fill-opacity',null);
+    nodeSel.selectAll('.label-group').attr('opacity',null);
+    if(hullSel) hullSel.attr('opacity',null);
+    document.getElementById('selected-community').textContent='';
+  });
+
+  // Rebuild color grid after render
+  buildColorGrid();
+}
+
+// ══════════════════════════════════════════════════════════
+// HULLS
+// ══════════════════════════════════════════════════════════
+function drawHulls() {
+  if(!hullLayer) return;
+  const byComm={};
+  for(const n of currentNodeData){const c=n.community;if(!byComm[c])byComm[c]=[];byComm[c].push([n.x,n.y]);}
+  const hullData=Object.entries(byComm)
+    .filter(([,pts])=>pts.length>=S.hullMin)
+    .map(([c,pts])=>({community:+c,hull:d3.polygonHull(pts)}))
+    .filter(d=>d.hull);
+  hullSel=hullLayer.selectAll('.hull').data(hullData,d=>d.community);
+  hullSel.enter().append('path').attr('class','hull')
+    .merge(hullSel)
+    .attr('d',d=>'M'+d.hull.map(p=>p.join(',')).join('L')+'Z')
+    .attr('fill',d=>cc(d.community)).attr('stroke',d=>cc(d.community))
+    .attr('fill-opacity',S.hullOpacity).attr('stroke-opacity',S.hullOpacity*6);
+  hullSel.exit().remove();
+}
+
+// ══════════════════════════════════════════════════════════
+// LIVE VISUAL APPLY — no sim restart needed
+// ══════════════════════════════════════════════════════════
+function applyVisualSettings() {
+  if(!nodeSel) return;
+
+  // Labels visibility
+  nodeSel.selectAll('.label-group').style('display', S.showLabels ? null : 'none');
+
+  // Status rings
+  nodeSel.selectAll('.status-ring').style('display', S.showRing ? null : 'none');
+
+  // Hulls
+  if(!S.showHulls) { if(hullLayer) hullLayer.selectAll('*').remove(); }
+  // (drawHulls runs on tick if showHulls is true)
+
+  // Arrows — update marker-end attr
+  if(linkSel) linkSel.attr('marker-end', S.showArrows ? 'url(#arrow)' : null);
+
+  // Link opacity & intra brightening
+  if(linkSel) {
+    linkSel.attr('stroke-opacity', function(d) {
+      const s=typeof d.source==='object'?d.source.id:d.source;
+      const t=typeof d.target==='object'?d.target.id:d.target;
+      const intra = currentCommunityOf[s]===currentCommunityOf[t];
+      return S.intraBright && intra ? S.linkOpacity : S.linkOpacity*0.5;
+    });
+    linkSel.attr('class', function(d) {
+      const s=typeof d.source==='object'?d.source.id:d.source;
+      const t=typeof d.target==='object'?d.target.id:d.target;
+      const intra = currentCommunityOf[s]===currentCommunityOf[t];
+      return 'link' + (S.intraBright && intra ? ' intra' : '');
+    });
+  }
+
+  // Hull opacity
+  if(hullSel) {
+    hullSel.attr('fill-opacity', S.hullOpacity)
+           .attr('stroke-opacity', S.hullOpacity*6);
+  }
+
+  // Label length — update text
+  if(S.labelLen !== undefined) {
+    const CW=6.5,PAD=5;
+    nodeSel.selectAll('.label-group').each(function(d){
+      d._label=d.name.length>S.labelLen?d.name.slice(0,S.labelLen-1)+'…':d.name;
+      d._labelW=d._label.length*CW+PAD*2;
+      d3.select(this).select('text').text(d._label);
+      d3.select(this).select('rect')
+        .attr('x',-d._labelW/2).attr('width',d._labelW);
+    });
+  }
+
+  // hullMin is also live
+  if(S.showHulls) drawHulls();
+}
+
+// Live-apply community colors to existing nodes
+function applyColorsLive() {
+  if(!nodeSel) return;
+  nodeSel.selectAll('.main-circle')
+    .attr('fill',d=>cc(d.community)+(d.status&&d.status!=='ok'?'12':'22'))
+    .attr('stroke',d=>(!d.status||d.status==='ok')?cc(d.community)+'cc':STATUS_STROKE[d.status]||'#64748b');
+  if(hullLayer) drawHulls();
+  // Rebuild grid so swatches reflect current values
+  buildColorGrid();
+}
+
+// ══════════════════════════════════════════════════════════
+// COMMUNITY COLOR GRID
+// ══════════════════════════════════════════════════════════
+function buildColorGrid() {
+  const grid = document.getElementById('comm-colors-grid');
+
+  const numComm = new Set(Object.values(currentCommunityOf)).size;
+  
+  // If no data, just inject the placeholder message and stop
+  if(!graphData || numComm===0) {
+    grid.innerHTML = '<p id="no-communities-msg">Load a graph first to see communities.</p>';
+    return;
+  }
+
+  // Group nodes by community for labeling
+  const commNodes = {};
+  (graphData.nodes||[]).forEach(n => {
+    const c = n.community ?? currentCommunityOf[n.id] ?? 0;
+    if(!commNodes[c]) commNodes[c]=[];
+    commNodes[c].push(n.name);
+  });
+
+  // Clear the grid safely (this will remove the placeholder message if it's there)
+  grid.innerHTML = '';
+  
+  const comms = [...new Set(Object.values(currentCommunityOf))].sort((a,b)=>a-b);
+  comms.forEach(idx => {
+    const col = cc(idx);
+    const names = (commNodes[idx]||[]).slice(0,2).join(', ') + (commNodes[idx]?.length>2?'…':'');
+    const row = document.createElement('div');
+    row.className='comm-color-row';
+
+    const swatch=document.createElement('input');
+    swatch.type='color'; swatch.className='comm-color-swatch';
+    swatch.value=col.length===7?col:'#6ecbff';
+    swatch.title=`Community ${idx+1}`;
+    swatch.addEventListener('input',()=>{
+      customColors[idx]=swatch.value;
+      applyColorsLive();
+    });
+
+    const label=document.createElement('div');
+    label.className='comm-color-label';
+    label.title=names;
+    label.innerHTML=`<span style="color:${col}">C${idx+1}</span> <span style="font-size:9px;opacity:.6">${names||'—'}</span>`;
+
+    const resetBtn=document.createElement('button');
+    resetBtn.className='comm-color-reset';
+    resetBtn.title='Reset to default'; resetBtn.textContent='↺';
+    resetBtn.addEventListener('click',()=>{
+      delete customColors[idx];
+      applyColorsLive();
+      buildColorGrid();
+    });
+
+    row.appendChild(swatch); row.appendChild(label); row.appendChild(resetBtn);
+    grid.appendChild(row);
+  });
+}
+
+document.getElementById('btn-reset-all-colors').addEventListener('click',()=>{
+  customColors={};
+  applyColorsLive();
+});
+
+// ══════════════════════════════════════════════════════════
+// TOOLTIP
+// ══════════════════════════════════════════════════════════
+function showTooltip(ev,d) {
+  const tip=document.getElementById('tooltip');
+  const sc={ok:'#6ecbff',captcha:'#f59e0b',forbidden:'#ef4444',ghost:'#64748b',expired:'#475569'}[d.status]||'#64748b';
+  const commColor=cc(d.community);
+  const inv=d.invite
+    ?`<a class="t-invite" href="${d.invite}" target="_blank">&#x2197; ${d.invite}</a>`
+    :`<span class="t-invite none">No invite recorded</span>`;
+  tip.innerHTML=`<strong>${d.name}</strong>
+    <span class="t-community" style="color:${commColor}">Community ${d.community+1}</span>
+    <span class="t-status" style="color:${sc}">${d.status||'unknown'}</span>
+    <span class="t-row"><b>${(d.member_count||0).toLocaleString()}</b> members</span>${inv}`;
+  tip.style.opacity=1; moveTooltip(ev);
+}
+function moveTooltip(ev){
+  const tip=document.getElementById('tooltip');
+  tip.style.left=Math.min(ev.pageX+14,window.innerWidth-tip.offsetWidth-16)+'px';
+  tip.style.top=Math.min(ev.pageY-10,window.innerHeight-tip.offsetHeight-16)+'px';
+}
+document.getElementById('tooltip').addEventListener('mouseleave',()=>{document.getElementById('tooltip').style.opacity=0;});
+
+// ══════════════════════════════════════════════════════════
+// HIGHLIGHT
+// ══════════════════════════════════════════════════════════
+function highlightNode(id,links,communityOf) {
+  const connected=new Set([id]);
+  links.forEach(l=>{
+    const s=typeof l.source==='object'?l.source.id:l.source;
+    const t=typeof l.target==='object'?l.target.id:l.target;
+    if(s===id)connected.add(t); if(t===id)connected.add(s);
+  });
+  linkSel.classed('highlighted',l=>{
+    const s=typeof l.source==='object'?l.source.id:l.source;
+    const t=typeof l.target==='object'?l.target.id:l.target;
+    return s===id||t===id;
+  });
+  nodeSel.selectAll('circle').attr('stroke-opacity',d=>connected.has(d.id)?1:0.1).attr('fill-opacity',d=>connected.has(d.id)?1:0.06);
+  nodeSel.selectAll('.label-group').attr('opacity',d=>connected.has(d.id)?1:0.1);
+  if(hullSel)hullSel.attr('opacity',d=>[...connected].some(cid=>communityOf[cid]===d.community)?1:0.12);
+}
+
+// ══════════════════════════════════════════════════════════
+// NODE INFO
+// ══════════════════════════════════════════════════════════
+function showNodeInfo(node,links,nodeById){
+  const panel=document.getElementById('node-info');
+  const badge=document.getElementById('selected-community');
+  if(!node){panel.innerHTML='<p class="info-empty">Click a node to inspect it.</p>';badge.textContent='';return;}
+  const sc={ok:'#6ecbff',captcha:'#f59e0b',forbidden:'#ef4444',ghost:'#64748b',expired:'#334155'}[node.status]||'#64748b';
+  const commColor=cc(node.community);
+  badge.innerHTML=`<span style="color:${commColor}">&#x25CF; CLUSTER ${node.community+1}</span>`;
+  const inE=links?links.filter(l=>(typeof l.target==='object'?l.target.id:l.target)===node.id):[];
+  const outE=links?links.filter(l=>(typeof l.source==='object'?l.source.id:l.source)===node.id):[];
+  const R=(label,val)=>`<div class="info-row"><span class="info-label">${label}</span><span class="info-value">${val}</span></div>`;
+  let html=`<div class="info-name" style="color:${commColor}">${node.name}</div>`;
+  html+=R('Status',`<span style="color:${sc}">${node.status||'unknown'}</span>`);
+  html+=R('Members',(node.member_count||0).toLocaleString());
+  html+=R('In-links',inE.length);html+=R('Out-links',outE.length);
+  if(node.invite)html+=R('Invite',`<a class="invite-link" href="${node.invite}" target="_blank">${node.invite}</a>`);
+  if(node.discovered_at)html+=R('Found',new Date(node.discovered_at).toLocaleString());
+  const connBlock=(edges,dir)=>{
+    if(!edges.length)return'';
+    const key=dir==='out'?'target':'source';
+    const arrow=dir==='out'?'&#x2192;':'&#x2190;';
+    let h=`<div class="conn-block"><div class="conn-header">${dir==='out'?'Links To':'Linked From'} (${edges.length})</div>`;
+    edges.slice(0,12).forEach(e=>{
+      const nid=typeof e[key]==='object'?e[key].id:e[key];
+      const nn=nodeById?.[nid];
+      const nc=nn?cc(nn.community??0):'#aaa';
+      h+=`<div class="conn-item" onclick="focusNode('${nid}')"><span style="color:${nc}">${arrow}</span><span>${nn?nn.name:nid}</span><span style="margin-left:auto;color:var(--text-dim);font-size:9px">#${e.channel||'?'}</span></div>`;
+    });
+    if(edges.length>12)h+=`<div style="font-size:10px;color:var(--text-dim);padding:3px">+${edges.length-12} more</div>`;
+    return h+'</div>';
+  };
+  html+=connBlock(outE,'out')+connBlock(inE,'in');
+  panel.innerHTML=html;
+}
+window.focusNode=function(id){if(!nodeSel)return;nodeSel.each(function(d){if(d.id===id){showNodeInfo(d,currentLinks,currentNodeById);highlightNode(id,currentLinks,currentCommunityOf);}});};
+
+// ══════════════════════════════════════════════════════════
+// SEARCH
+// ══════════════════════════════════════════════════════════
+document.getElementById('search').addEventListener('input',e=>{
+  const q=e.target.value.toLowerCase(); if(!nodeSel)return;
+  nodeSel.selectAll('circle').attr('stroke-opacity',d=>!q||d.name.toLowerCase().includes(q)?1:0.08);
+  nodeSel.selectAll('.label-group').attr('opacity',d=>!q||d.name.toLowerCase().includes(q)?1:0.08);
+});
+
+// ══════════════════════════════════════════════════════════
+// CONTROLS
+// ══════════════════════════════════════════════════════════
+document.getElementById('btn-reset').addEventListener('click',()=>{if(zoom)d3.select('#graph').transition().duration(600).call(zoom.transform,d3.zoomIdentity);});
+document.getElementById('btn-freeze').addEventListener('click',function(){
+  frozen=!frozen; this.textContent=frozen?'UNFREEZE':'FREEZE';
+  if(simulation){frozen?simulation.stop():simulation.restart();}
+});
+
+// ══════════════════════════════════════════════════════════
+// SETTINGS MODAL — wiring
+// ══════════════════════════════════════════════════════════
+
+// All sliders + toggles are wired via data-key attribute
+function fmtVal(v){return Math.abs(v)<1?parseFloat(v).toFixed(3).replace(/\.?0+$/,''):String(v);}
+
+// Sync slider display values live as user drags
+document.querySelectorAll('input[type=range][data-key]').forEach(input=>{
+  const dispId='v-'+input.id.slice(2);
+  const disp=document.getElementById(dispId);
+  input.addEventListener('input',()=>{
+    if(disp) disp.textContent=fmtVal(input.value);
+    checkRestartWarning();
+  });
+});
+
+// Toggles
+document.querySelectorAll('.toggle[data-key]').forEach(el=>{
+  el.addEventListener('click',()=>{
+    el.classList.toggle('on');
+    checkRestartWarning();
+  });
+});
+
+// Tab switching
+document.querySelectorAll('.stab').forEach(btn=>{
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.stab').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+    this.classList.add('active');
+    document.getElementById('tab-'+this.dataset.tab).classList.add('active');
+  });
+});
+
+function readPendingFromUI(){
+  P={...S};
+  document.querySelectorAll('input[type=range][data-key]').forEach(input=>{
+    P[input.dataset.key]=parseFloat(input.value);
+  });
+  document.querySelectorAll('.toggle[data-key]').forEach(el=>{
+    P[el.dataset.key]=el.classList.contains('on');
+  });
+}
+
+function checkRestartWarning(){
+  readPendingFromUI();
+  const needsRestart=Object.keys(P).some(k=>PHYSICS_KEYS.has(k)&&P[k]!==S[k]);
+  document.getElementById('restart-warn').classList.toggle('visible',needsRestart&&!!graphData);
+}
+
+function loadSettingsIntoUI(){
+  document.querySelectorAll('input[type=range][data-key]').forEach(input=>{
+    input.value=S[input.dataset.key];
+    const disp=document.getElementById('v-'+input.id.slice(2));
+    if(disp) disp.textContent=fmtVal(S[input.dataset.key]);
+  });
+  document.querySelectorAll('.toggle[data-key]').forEach(el=>{
+    el.classList.toggle('on',!!S[el.dataset.key]);
+  });
+  document.getElementById('restart-warn').classList.remove('visible');
+}
+
+document.getElementById('btn-settings').addEventListener('click',()=>{
+  loadSettingsIntoUI();
+  buildColorGrid();
+  document.getElementById('settings-modal').classList.add('open');
+});
+
+['settings-close','s-btn-close'].forEach(id=>{
+  document.getElementById(id)?.addEventListener('click',()=>document.getElementById('settings-modal').classList.remove('open'));
+});
+document.getElementById('settings-modal').addEventListener('click',e=>{
+  if(e.target===document.getElementById('settings-modal'))document.getElementById('settings-modal').classList.remove('open');
+});
+
+document.getElementById('s-btn-apply').addEventListener('click',()=>{
+  readPendingFromUI();
+  const needsRestart=Object.keys(P).some(k=>PHYSICS_KEYS.has(k)&&P[k]!==S[k]);
+  const visualChanged=Object.keys(P).some(k=>!PHYSICS_KEYS.has(k)&&P[k]!==S[k]);
+
+  S={...P};
+
+  if(needsRestart&&graphData){
+    document.getElementById('settings-modal').classList.remove('open');
+    renderGraph(graphData);
+  } else {
+    if(visualChanged) applyVisualSettings();
+    document.getElementById('settings-modal').classList.remove('open');
+  }
+});
+
+document.getElementById('s-btn-reset-defaults').addEventListener('click',()=>{
+  S={...DEFAULTS};
+  P={...DEFAULTS};
+  loadSettingsIntoUI();
+});
+
+document.getElementById('btn-settings').addEventListener('click',()=>{
+  loadSettingsIntoUI();
+  buildColorGrid();
+  document.getElementById('settings-modal').classList.add('open');
+});
+
+// ══════════════════════════════════════════════════════════
+// EXPORT MODAL
+// ══════════════════════════════════════════════════════════
+let exportFilter='all';
+function buildExportList(filter){if(!graphData)return[];return graphData.nodes.filter(n=>n.invite&&(filter==='all'||n.status===filter)).sort((a,b)=>(b.member_count||0)-(a.member_count||0)).map(n=>n.invite);}
+function refreshExport(){const list=buildExportList(exportFilter);document.getElementById('export-textarea').value=list.join('\n');document.getElementById('export-count').textContent=`${list.length} link${list.length!==1?'s':''}`;}
+document.getElementById('btn-export').addEventListener('click',()=>{if(!graphData){alert('Load a JSON file first.');return;}refreshExport();document.getElementById('export-modal').classList.add('open');});
+document.getElementById('export-close').addEventListener('click',()=>document.getElementById('export-modal').classList.remove('open'));
+document.getElementById('export-modal').addEventListener('click',e=>{if(e.target===document.getElementById('export-modal'))document.getElementById('export-modal').classList.remove('open');});
+document.querySelectorAll('.filter-btn').forEach(btn=>{btn.addEventListener('click',function(){document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));this.classList.add('active');exportFilter=this.dataset.status;refreshExport();});});
+document.getElementById('btn-copy-list').addEventListener('click',function(){const val=document.getElementById('export-textarea').value;if(!val)return;navigator.clipboard.writeText(val).then(()=>{this.textContent='COPIED!';this.classList.add('copied');setTimeout(()=>{this.textContent='COPY ALL';this.classList.remove('copied');},2000);});});
+document.getElementById('btn-download-list').addEventListener('click',()=>{const val=document.getElementById('export-textarea').value;if(!val)return;Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([val],{type:'text/plain'})),download:`discord-invites-${exportFilter}-${Date.now()}.txt`}).click();});
+
+// ══════════════════════════════════════════════════════════
+// SESSION AUTO-LOAD
+// If ?session=SESSION_ID is in the URL, fetch the JSON from
+// the Flask server, auto-render it AND auto-download it.
+// ══════════════════════════════════════════════════════════
+(function() {
+  const params = new URLSearchParams(window.location.search);
+  const sessionId = params.get('session');
+  if (!sessionId) return;
+
+  const url = '/api/download/' + sessionId;
+
+  // Show session badge
+  const badge = document.getElementById('session-badge');
+  if (badge) badge.classList.add('visible');
+
+  // Auto-trigger browser download so user gets the file saved locally
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ecosystem.json';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+
+  // Also auto-load into the visualizer
+  fetch(url)
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(data => {
+      data._filename = 'ecosystem.json (session)';
+      graphData = data;
+      showFileCard('ecosystem.json', data);
+      renderGraph(data);
+      loadSettingsIntoUI();
+    })
+    .catch(err => {
+      console.error('GhostLink: failed to auto-load session JSON', err);
+      alert('Could not auto-load session data: ' + err.message + '\n\nPlease load the downloaded ecosystem.json manually using the sidebar.');
+    });
+})();
+</script>
+</body>
+</html>
