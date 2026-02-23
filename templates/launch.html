@@ -22,6 +22,12 @@
             --danger-bg: rgba(239, 68, 68, 0.08);
             --danger-border: rgba(239, 68, 68, 0.35);
             --danger-text: #ef4444;
+            --green: #10b981;
+            --green-bg: rgba(16, 185, 129, 0.07);
+            --green-border: rgba(16, 185, 129, 0.35);
+            --purple: #a78bfa;
+            --purple-bg: rgba(167, 139, 250, 0.07);
+            --purple-border: rgba(167, 139, 250, 0.3);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -30,32 +36,34 @@
             background: var(--bg);
             color: var(--text);
             font-family: var(--font);
-            min-height: 100vh;
+            height: 100vh;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
-        /* Header */
+        /* ── Header ── */
         header {
-            padding: 16px 32px;
+            padding: 14px 28px;
             border-bottom: 1px solid var(--border-solid);
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: 14px;
             flex-shrink: 0;
         }
 
         .logo-icon {
-            width: 22px; height: 22px;
+            width: 20px; height: 20px;
             border: 1.5px solid var(--accent);
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             box-shadow: 0 0 10px var(--accent-glow);
             animation: pulse 3s infinite;
+            flex-shrink: 0;
         }
         .logo-icon::before {
             content: '';
-            width: 6px; height: 6px;
+            width: 5px; height: 5px;
             background: var(--accent);
             border-radius: 50%;
         }
@@ -83,167 +91,241 @@
         }
         .back-link:hover { color: var(--accent); }
 
-        /* Main layout */
+        /* ── Main layout ── */
         .main {
             flex: 1;
             display: flex;
-            gap: 0;
             overflow: hidden;
+            min-height: 0;
         }
 
-        /* Config panel */
+        /* ── Config panel ── */
         #config-panel {
-            width: 400px;
+            width: 420px;
             flex-shrink: 0;
             border-right: 1px solid var(--border-solid);
             overflow-y: auto;
-            padding: 32px 28px;
+            padding: 24px 24px 32px;
             display: flex;
             flex-direction: column;
-            gap: 24px;
+            gap: 20px;
         }
 
         #config-panel::-webkit-scrollbar { width: 3px; }
         #config-panel::-webkit-scrollbar-thumb { background: var(--border-solid); }
 
         h1 {
-            font-size: 1.1rem;
+            font-size: 1rem;
             letter-spacing: 3px;
             text-transform: uppercase;
             color: var(--accent);
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
 
         .page-subtitle {
-            font-size: 0.8rem;
+            font-size: 0.78rem;
             color: var(--text-dim);
             line-height: 1.7;
         }
 
-        /* Warning boxes */
-        .warning-box {
-            padding: 14px 16px;
-            border: 1px solid var(--warn-border);
-            background: var(--warn-bg);
-            color: var(--warn-text);
+        /* ── Warning / info boxes ── */
+        .box {
+            padding: 12px 14px;
             font-size: 10.5px;
             line-height: 1.7;
         }
 
-        .warning-box .w-title {
+        .box .b-title {
             font-size: 9px;
             letter-spacing: .2em;
             text-transform: uppercase;
-            margin-bottom: 6px;
+            margin-bottom: 5px;
             display: block;
+            font-weight: 700;
         }
 
-        .danger-box {
-            padding: 14px 16px;
-            border: 1px solid var(--danger-border);
-            background: var(--danger-bg);
-            color: var(--danger-text);
-            font-size: 10.5px;
-            line-height: 1.7;
-        }
+        .box-danger  { border: 1px solid var(--danger-border);  background: var(--danger-bg);  color: var(--danger-text); }
+        .box-warn    { border: 1px solid var(--warn-border);    background: var(--warn-bg);    color: var(--warn-text); }
+        .box-info    { border: 1px solid var(--border-solid);   background: var(--card-bg);    color: var(--text-dim); }
 
-        .danger-box .w-title {
+        /* ── Section dividers ── */
+        .section-header {
             font-size: 9px;
-            letter-spacing: .2em;
+            letter-spacing: .22em;
             text-transform: uppercase;
-            margin-bottom: 6px;
-            display: block;
+            color: var(--accent);
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 4px;
         }
 
-        /* Form */
-        .field { display: flex; flex-direction: column; gap: 8px; }
+        /* ── Form fields ── */
+        .field { display: flex; flex-direction: column; gap: 7px; }
 
         label {
             font-size: 9px;
-            letter-spacing: .2em;
+            letter-spacing: .18em;
             text-transform: uppercase;
             color: var(--text-dim);
         }
 
-        label span {
-            color: var(--accent);
-            margin-left: 5px;
-        }
+        label .req { color: var(--accent); margin-left: 4px; }
 
         input[type="text"],
         input[type="password"],
-        input[type="number"] {
+        input[type="number"],
+        textarea {
             background: var(--input-bg);
             border: 1px solid var(--border-solid);
             color: var(--text);
             font-family: var(--font);
-            font-size: 12px;
-            padding: 10px 14px;
+            font-size: 11.5px;
+            padding: 9px 12px;
             outline: none;
             transition: border-color .14s, box-shadow .14s;
             width: 100%;
+            resize: none;
         }
 
-        input:focus {
+        input:focus, textarea:focus {
             border-color: var(--accent);
-            box-shadow: 0 0 10px var(--accent-glow);
+            box-shadow: 0 0 8px var(--accent-glow);
         }
 
-        input::placeholder { color: var(--text-dim); }
+        input::placeholder, textarea::placeholder { color: var(--text-dim); opacity: .6; }
 
         .field-hint {
+            font-size: 9px;
+            color: var(--text-dim);
+            line-height: 1.6;
+            opacity: .8;
+        }
+
+        .field-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 14px;
+        }
+
+        /* ── Scan mode toggles ── */
+        .scan-modes { display: flex; flex-direction: column; gap: 10px; }
+
+        .scan-toggle {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px 14px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            cursor: pointer;
+            transition: border-color .15s, background .15s;
+            user-select: none;
+        }
+
+        .scan-toggle:hover { border-color: var(--border-solid); }
+
+        .scan-toggle.active-byod  { border-color: var(--green-border);  background: var(--green-bg); }
+        .scan-toggle.active-ubg   { border-color: var(--purple-border); background: var(--purple-bg); }
+        .scan-toggle.active-forum { border-color: rgba(110,203,255,.25); background: rgba(110,203,255,.04); }
+
+        .toggle-pip {
+            width: 34px; height: 18px;
+            background: var(--border-solid);
+            border-radius: 9px;
+            position: relative;
+            flex-shrink: 0;
+            margin-top: 1px;
+            transition: background .2s;
+            border: 1px solid var(--border-solid);
+        }
+
+        .toggle-pip::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 12px; height: 12px;
+            background: var(--text-dim);
+            border-radius: 50%;
+            transition: all .2s;
+        }
+
+        .scan-toggle.active-byod  .toggle-pip { background: rgba(16,185,129,.3);   border-color: var(--green);  }
+        .scan-toggle.active-ubg   .toggle-pip { background: rgba(167,139,250,.3);  border-color: var(--purple); }
+        .scan-toggle.active-forum .toggle-pip { background: rgba(110,203,255,.25); border-color: var(--accent); }
+
+        .scan-toggle.active-byod  .toggle-pip::after,
+        .scan-toggle.active-ubg   .toggle-pip::after,
+        .scan-toggle.active-forum .toggle-pip::after {
+            left: 18px;
+        }
+
+        .scan-toggle.active-byod  .toggle-pip::after { background: var(--green); }
+        .scan-toggle.active-ubg   .toggle-pip::after { background: var(--purple); }
+        .scan-toggle.active-forum .toggle-pip::after { background: var(--accent); }
+
+        .toggle-body { flex: 1; }
+
+        .toggle-title {
+            font-size: 10.5px;
+            font-weight: 700;
+            margin-bottom: 3px;
+            display: flex;
+            align-items: center;
+            gap: 7px;
+        }
+
+        .toggle-title .badge {
+            font-size: 8px;
+            letter-spacing: .1em;
+            padding: 1px 6px;
+            border-radius: 2px;
+        }
+
+        .badge-list  { background: rgba(16,185,129,.12);  border: 1px solid var(--green-border);  color: var(--green);  }
+        .badge-nomap { background: rgba(239,68,68,.1);    border: 1px solid rgba(239,68,68,.3);    color: #ef4444; }
+
+        .toggle-desc {
             font-size: 9.5px;
             color: var(--text-dim);
             line-height: 1.6;
         }
 
-        /* Grid for two number fields */
-        .field-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        /* Launch button */
+        /* ── Launch button ── */
         #btn-launch {
             width: 100%;
-            padding: 14px;
+            padding: 13px;
             background: transparent;
             border: 1px solid var(--accent);
             color: var(--accent);
             font-family: var(--font);
-            font-size: 12px;
+            font-size: 11px;
             letter-spacing: 4px;
             text-transform: uppercase;
             cursor: pointer;
             transition: all .2s;
             box-shadow: 0 0 10px var(--accent-glow);
-            margin-top: 8px;
         }
 
         #btn-launch:hover:not(:disabled) {
             background: var(--accent);
             color: var(--bg);
-            box-shadow: 0 0 30px var(--accent);
+            box-shadow: 0 0 28px var(--accent);
         }
 
-        #btn-launch:disabled {
-            opacity: .5;
-            cursor: not-allowed;
-            box-shadow: none;
-        }
+        #btn-launch:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
 
-        /* Terminal panel */
+        /* ── Terminal panel ── */
         #terminal-panel {
             flex: 1;
             display: flex;
             flex-direction: column;
             overflow: hidden;
             background: #000;
+            min-width: 0;
         }
 
         .terminal-header {
-            padding: 12px 20px;
+            padding: 10px 18px;
             border-bottom: 1px solid var(--border-solid);
             display: flex;
             align-items: center;
@@ -265,12 +347,6 @@
             text-transform: uppercase;
         }
 
-        .status-idle { color: var(--text-dim); }
-        .status-running { color: var(--accent); }
-        .status-done { color: #10b981; }
-        .status-error { color: #ef4444; }
-
-        /* The blinking cursor dot */
         .blink-dot {
             display: inline-block;
             width: 6px; height: 6px;
@@ -279,58 +355,61 @@
             vertical-align: middle;
         }
 
-        .idle .blink-dot { background: var(--text-dim); }
+        .idle .blink-dot  { background: var(--text-dim); }
         .running .blink-dot { background: var(--accent); animation: blink .8s step-end infinite; }
-        .done .blink-dot { background: #10b981; }
-        .err .blink-dot { background: #ef4444; }
+        .done .blink-dot  { background: var(--green); }
+        .err  .blink-dot  { background: #ef4444; }
 
         @keyframes blink { 50% { opacity: 0; } }
 
         #terminal-output {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            font-size: 12px;
-            line-height: 1.7;
+            padding: 18px 20px;
+            font-size: 11.5px;
+            line-height: 1.75;
             color: #7dd3fc;
             white-space: pre-wrap;
             word-break: break-all;
+            min-height: 0;
         }
 
         #terminal-output::-webkit-scrollbar { width: 3px; }
         #terminal-output::-webkit-scrollbar-thumb { background: var(--border-solid); }
 
-        .t-line { display: block; }
-        .t-line.dim { color: var(--text-dim); }
-        .t-line.ok { color: #10b981; }
-        .t-line.warn { color: #f59e0b; }
-        .t-line.err { color: #ef4444; }
-        .t-line.sep { color: rgba(110,203,255,0.25); }
+        .t-line       { display: block; }
+        .t-line.dim   { color: var(--text-dim); }
+        .t-line.ok    { color: var(--green); }
+        .t-line.warn  { color: var(--warn-text); }
+        .t-line.err   { color: #ef4444; }
+        .t-line.sep   { color: rgba(110,203,255,0.2); }
+        .t-line.ip    { color: var(--green); }
+        .t-line.url   { color: var(--purple); }
 
-        /* Placeholder for empty terminal */
         .term-placeholder {
             color: var(--border-solid);
             font-size: 11px;
-            line-height: 2;
-            padding: 20px 0;
+            line-height: 2.2;
         }
 
-        /* Post-run action bar */
+        /* ── Action bar ── */
         #action-bar {
             display: none;
-            padding: 16px 20px;
+            padding: 14px 18px;
             border-top: 1px solid var(--border-solid);
-            gap: 12px;
+            gap: 10px;
             flex-shrink: 0;
             align-items: center;
+            flex-wrap: wrap;
+            background: rgba(0,0,0,.6);
         }
 
         #action-bar.visible { display: flex; }
 
-        .action-label { font-size: 10px; color: var(--text-dim); margin-right: 4px; }
+        .action-label { font-size: 10px; color: var(--text-dim); }
 
         .action-btn {
-            padding: 9px 22px;
+            padding: 8px 18px;
             font-family: var(--font);
             font-size: 10px;
             letter-spacing: .1em;
@@ -340,22 +419,23 @@
             text-decoration: none;
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 7px;
         }
 
-        .btn-download {
-            background: rgba(110,203,255,.07);
-            border: 1px solid var(--accent);
-            color: var(--accent);
-        }
-        .btn-download:hover { background: rgba(110,203,255,.18); }
+        .btn-map      { background: rgba(110,203,255,.07); border: 1px solid var(--accent); color: var(--accent); }
+        .btn-map:hover { background: rgba(110,203,255,.18); }
 
-        .btn-visualizer {
-            background: rgba(16,185,129,.07);
-            border: 1px solid #10b981;
-            color: #10b981;
-        }
-        .btn-visualizer:hover { background: rgba(16,185,129,.18); }
+        .btn-vis      { background: var(--green-bg);  border: 1px solid var(--green);  color: var(--green); }
+        .btn-vis:hover { background: rgba(16,185,129,.18); }
+
+        .btn-byod     { background: var(--green-bg);  border: 1px solid var(--green);  color: var(--green); }
+        .btn-byod:hover { background: rgba(16,185,129,.18); }
+
+        .btn-ubg      { background: var(--purple-bg); border: 1px solid var(--purple); color: var(--purple); }
+        .btn-ubg:hover { background: rgba(167,139,250,.18); }
+
+        /* hidden until enabled */
+        .action-btn.hidden { display: none; }
     </style>
 </head>
 <body>
@@ -367,52 +447,125 @@
 </header>
 
 <div class="main">
+
     <!-- ── Config Panel ── -->
     <div id="config-panel">
+
         <div>
             <h1>Configure Run</h1>
-            <p class="page-subtitle">Set your parameters below and launch the bot. Output streams live to the terminal on the right.</p>
+            <p class="page-subtitle">Configure your scan below, then launch. Output streams live to the terminal.</p>
         </div>
 
-        <div class="danger-box">
-            <span class="w-title">⚠ Account Safety</span>
-            Use a <strong>dedicated alt/burner Discord account</strong> for this tool. Self-botting (using a user token with automation) violates Discord's Terms of Service. Do not use your main account. The tool may trigger verification challenges or account flags.
+        <!-- Warnings -->
+        <div class="box box-danger">
+            <span class="b-title">⚠ Account Safety</span>
+            Use a <strong>dedicated alt/burner account</strong>. Self-botting violates Discord's ToS. Never use your main account.
         </div>
 
-        <div class="warning-box">
-            <span class="w-title">◈ Captcha Notice</span>
-            Most Discord servers now require captcha verification on join. For best results: manually join and verify in the target servers <em>before</em> running this tool, then use shallow depth (1–2). The bot will create ghost nodes for servers it cannot enter and continue mapping.
+        <div class="box box-warn">
+            <span class="b-title">◈ Captcha Notice</span>
+            Most servers require captcha on join. For best results manually join + verify target servers first, then run at depth 1–2. The bot creates ghost nodes for unreachable servers and continues.
         </div>
 
-        <!-- Token -->
+        <!-- ── Core Settings ── -->
+        <div class="section-header">// Core Settings</div>
+
         <div class="field">
-            <label>User Token <span>*required</span></label>
-            <input type="password" id="inp-token" placeholder="Paste your Discord user token here" autocomplete="off" spellcheck="false">
-            <div class="field-hint">Settings → Advanced → Developer Mode. Never share your token — it grants full access to your account.</div>
+            <label>User Token <span class="req">*required</span></label>
+            <input type="password" id="inp-token" placeholder="Paste your Discord user token" autocomplete="off" spellcheck="false">
+            <div class="field-hint">Settings → Advanced → Developer Mode. Never share your token.</div>
         </div>
 
-        <!-- Seed Invite -->
         <div class="field">
-            <label>Seed Invite Code / URL <span>*required</span></label>
+            <label>Seed Invite Code / URL <span class="req">*required</span></label>
             <input type="text" id="inp-invite" placeholder="e.g.  abc123  or  discord.gg/abc123" autocomplete="off" spellcheck="false">
-            <div class="field-hint">The bot begins crawling from this server outward.</div>
+            <div class="field-hint">The bot begins crawling outward from this server.</div>
         </div>
 
-        <!-- Depth + Delay -->
         <div class="field-row">
             <div class="field">
                 <label>Depth</label>
                 <input type="number" id="inp-depth" value="2" min="1" max="5" step="1">
-                <div class="field-hint">BFS layers to crawl. 1 = seed only, 2 = seed + discovered servers.</div>
+                <div class="field-hint">BFS layers. 1 = seed only.</div>
             </div>
             <div class="field">
                 <label>Delay (sec)</label>
                 <input type="number" id="inp-delay" value="3.0" min="1" max="30" step="0.5">
-                <div class="field-hint">Pause between joins. Keep ≥ 2s to avoid rate-limits.</div>
+                <div class="field-hint">Keep ≥ 2s to avoid rate-limits.</div>
             </div>
         </div>
 
+        <!-- ── Partner Channel Keywords ── -->
+        <div class="section-header">// Partner Channel Keywords</div>
+
+        <div class="field">
+            <label>Keywords <span style="color:var(--text-dim);margin-left:4px;font-size:8px">(comma-separated, leave blank for defaults)</span></label>
+            <textarea id="inp-keywords" rows="3"
+                placeholder="partner, partners, affiliates, affiliate, collab, collaboration"
+                spellcheck="false"></textarea>
+            <div class="field-hint">
+                The bot searches for channels whose names contain these words to find Discord invites to crawl.
+                Leave blank to use the defaults shown above.
+            </div>
+        </div>
+
+        <!-- ── Scan Modes ── -->
+        <div class="section-header">// Extra Scan Modes</div>
+
+        <div class="box box-info" style="font-size:9.5px; padding: 10px 12px;">
+            Extra scans run alongside the normal map crawl. Results are compiled into separate downloadable files and <strong style="color:white">do not appear on the map</strong>.
+        </div>
+
+        <div class="scan-modes">
+
+            <!-- Forum scanning -->
+            <div class="scan-toggle active-forum" id="toggle-forums" onclick="toggleScan(this,'forum')">
+                <div class="toggle-pip"></div>
+                <div class="toggle-body">
+                    <div class="toggle-title" style="color:var(--accent)">
+                        Forum Channel Scanning
+                        <span class="badge" style="background:rgba(110,203,255,.1);border:1px solid rgba(110,203,255,.3);color:var(--accent)">ON BY DEFAULT</span>
+                    </div>
+                    <div class="toggle-desc">
+                        Also crawls Discord forum channels (in addition to text channels) for invites, IPs, and URLs. Reads active threads. Disable if forums are causing slowdowns.
+                    </div>
+                </div>
+            </div>
+
+            <!-- BYOD IP scan -->
+            <div class="scan-toggle" id="toggle-byod" onclick="toggleScan(this,'byod')">
+                <div class="toggle-pip"></div>
+                <div class="toggle-body">
+                    <div class="toggle-title" style="color:var(--text-dim)">
+                        BYOD IP Scanner
+                        <span class="badge badge-list">txt list</span>
+                        <span class="badge badge-nomap">not on map</span>
+                    </div>
+                    <div class="toggle-desc">
+                        Scans channels named <em>byod, ips, server-ip, gameserver, connect</em> etc. for IPv4 addresses (e.g. <code>104.21.44.12:25565</code>). Outputs a sorted txt file ranked by how often each IP appeared.
+                    </div>
+                </div>
+            </div>
+
+            <!-- UBG / advertising link scan -->
+            <div class="scan-toggle" id="toggle-ubg" onclick="toggleScan(this,'ubg')">
+                <div class="toggle-pip"></div>
+                <div class="toggle-body">
+                    <div class="toggle-title" style="color:var(--text-dim)">
+                        UBG / Advertising Link Scanner
+                        <span class="badge badge-list">txt list</span>
+                        <span class="badge badge-nomap">not on map</span>
+                    </div>
+                    <div class="toggle-desc">
+                        Scans channels named <em>ads, self-promo, advertising, ubg, unblocked, links, websites</em> etc. for all HTTP/HTTPS URLs. Discord invites are excluded (those go on the map). Outputs a deduplicated txt file.
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
         <button id="btn-launch">▶ Launch Bot</button>
+
     </div>
 
     <!-- ── Terminal Panel ── -->
@@ -423,30 +576,50 @@
                 <span class="blink-dot"></span>Idle
             </div>
         </div>
+
         <div id="terminal-output">
-            <span class="term-placeholder">Configure the mapper on the left and click [ Launch Bot ] to begin.<br>Output will stream here in real-time.</span>
+            <span class="term-placeholder">Configure the mapper on the left and click [ Launch Bot ] to begin.<br>Output will stream here in real-time.<br><br>Lines colour-coded:<br>  <span style="color:#10b981">green</span>  = success / joins / IPs found<br>  <span style="color:#a78bfa">purple</span> = URLs found<br>  <span style="color:#f59e0b">amber</span>  = warnings / captcha / ghost nodes<br>  <span style="color:#ef4444">red</span>    = errors</span>
         </div>
+
         <div id="action-bar">
             <span class="action-label">Run complete —</span>
-            <a id="btn-download" href="#" class="action-btn btn-download" download="ecosystem.json">⬇ Download JSON</a>
-            <a id="btn-open-vis" href="#" class="action-btn btn-visualizer">◈ Open in Visualizer</a>
+            <a id="btn-download-map" href="#" class="action-btn btn-map" download="ecosystem.json">⬇ Map JSON</a>
+            <a id="btn-open-vis"    href="#" class="action-btn btn-vis">◈ Open Visualizer</a>
+            <a id="btn-download-byod" href="#" class="action-btn btn-byod hidden" download="byod_ips.txt">⬇ BYOD IPs</a>
+            <a id="btn-download-ubg"  href="#" class="action-btn btn-ubg hidden"  download="ubg_links.txt">⬇ UBG Links</a>
         </div>
     </div>
+
 </div>
 
 <script>
+// ─── Toggle state ─────────────────────────────────────────────────────────────
+const scanState = { forum: true, byod: false, ubg: false };
+
+function toggleScan(el, mode) {
+    scanState[mode] = !scanState[mode];
+    const activeClass = 'active-' + mode;
+    el.classList.toggle(activeClass, scanState[mode]);
+
+    const titleEl = el.querySelector('.toggle-title');
+    if (mode === 'byod') {
+        titleEl.style.color = scanState[mode] ? 'var(--green)'  : 'var(--text-dim)';
+    } else if (mode === 'ubg') {
+        titleEl.style.color = scanState[mode] ? 'var(--purple)' : 'var(--text-dim)';
+    } else if (mode === 'forum') {
+        titleEl.style.color = scanState[mode] ? 'var(--accent)' : 'var(--text-dim)';
+    }
+}
+
+// ─── Main logic ───────────────────────────────────────────────────────────────
 (function() {
     let currentSessionId = null;
-    let evtSource = null;
+    let evtSource        = null;
 
-    const btnLaunch     = document.getElementById('btn-launch');
-    const termOutput    = document.getElementById('terminal-output');
-    const termStatus    = document.getElementById('terminal-status');
-    const actionBar     = document.getElementById('action-bar');
-    const btnDownload   = document.getElementById('btn-download');
-    const btnOpenVis    = document.getElementById('btn-open-vis');
-
-    // ── helpers ──────────────────────────────────────────────────────────────
+    const btnLaunch      = document.getElementById('btn-launch');
+    const termOutput     = document.getElementById('terminal-output');
+    const termStatus     = document.getElementById('terminal-status');
+    const actionBar      = document.getElementById('action-bar');
 
     function setTermStatus(state, text) {
         termStatus.className = state;
@@ -463,57 +636,66 @@
     }
 
     function classifyLine(text) {
-        if (/\[OK\]|\[+\]|CRAWL COMPLETE|Saved|Joined/.test(text)) return 'ok';
-        if (/\[x\]|\[!\]|\[ERROR\]|error|Error/.test(text)) return 'err';
-        if (/\[*\]|captcha|forbidden|Unreachable|\[~\]/.test(text)) return 'warn';
-        if (/={10,}/.test(text)) return 'sep';
-        if (/\[=\]|\[>\]/.test(text)) return 'dim';
+        if (/\[OK\]|\[+\]|CRAWL COMPLETE|Saved|Joined/.test(text))   return 'ok';
+        if (/\[IP\].*found/i.test(text))                               return 'ip';
+        if (/\[URL\].*found/i.test(text))                              return 'url';
+        if (/\[x\]|\[!\]|\[ERROR\]|error|Error/.test(text))           return 'err';
+        if (/\[*\]|captcha|forbidden|Unreachable|\[~\]/.test(text))   return 'warn';
+        if (/={10,}/.test(text))                                       return 'sep';
+        if (/\[=\]|\[>\]/.test(text))                                  return 'dim';
         return '';
     }
 
     function extractInviteCode(raw) {
-        // Strip URL prefixes if pasted as full URL
-        return raw.replace(/^(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|discord\.com\/invite|discordapp\.com\/invite)\//i, '').trim();
+        return raw.replace(
+            /^(?:https?:\/\/)?(?:www\.)?(?:discord\.gg|discord\.com\/invite|discordapp\.com\/invite)\//i,
+            ''
+        ).trim();
     }
 
     // ── Launch ────────────────────────────────────────────────────────────────
-
     btnLaunch.addEventListener('click', async () => {
-        const token  = document.getElementById('inp-token').value.trim();
-        const invite = extractInviteCode(document.getElementById('inp-invite').value);
-        const depth  = parseInt(document.getElementById('inp-depth').value, 10);
-        const delay  = parseFloat(document.getElementById('inp-delay').value);
+        const token    = document.getElementById('inp-token').value.trim();
+        const invite   = extractInviteCode(document.getElementById('inp-invite').value);
+        const depth    = parseInt(document.getElementById('inp-depth').value, 10);
+        const delay    = parseFloat(document.getElementById('inp-delay').value);
+        const keywords = document.getElementById('inp-keywords').value.trim();
 
-        if (!token) { alert('Please enter your Discord user token.'); return; }
+        if (!token)  { alert('Please enter your Discord user token.'); return; }
         if (!invite) { alert('Please enter a seed invite code.'); return; }
         if (isNaN(depth) || depth < 1) { alert('Depth must be at least 1.'); return; }
 
-        // Close any existing stream
         if (evtSource) { evtSource.close(); evtSource = null; }
 
-        // Clear terminal
         termOutput.innerHTML = '';
         actionBar.classList.remove('visible');
         btnLaunch.disabled = true;
         setTermStatus('running', 'Starting bot…');
+
         appendLine('GhostLink Ecosystem Mapper — initializing…', 'dim');
-        appendLine(`Seed invite : ${invite}`, 'dim');
-        appendLine(`Depth       : ${depth}`, 'dim');
-        appendLine(`Delay       : ${delay}s`, 'dim');
+        appendLine(`Seed invite  : ${invite}`, 'dim');
+        appendLine(`Depth        : ${depth}`, 'dim');
+        appendLine(`Delay        : ${delay}s`, 'dim');
+        if (keywords) appendLine(`Keywords     : ${keywords}`, 'dim');
+        appendLine(`Forums       : ${scanState.forum ? 'ON' : 'OFF'}`, 'dim');
+        appendLine(`BYOD scan    : ${scanState.byod  ? 'ON' : 'OFF'}`, 'dim');
+        appendLine(`UBG scan     : ${scanState.ubg   ? 'ON' : 'OFF'}`, 'dim');
         appendLine('', '');
 
-        // POST to start the bot
         let data;
         try {
             const res = await fetch('/api/start_bot', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ token, invite, depth, delay }),
+                body: JSON.stringify({
+                    token, invite, depth, delay, keywords,
+                    scan_byod:   scanState.byod,
+                    scan_ubg:    scanState.ubg,
+                    scan_forums: scanState.forum,
+                }),
             });
             data = await res.json();
-            if (!res.ok || data.error) {
-                throw new Error(data.error || `HTTP ${res.status}`);
-            }
+            if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
         } catch (err) {
             appendLine('[ERROR] Failed to start bot: ' + err.message, 'err');
             setTermStatus('err', 'Error');
@@ -524,7 +706,6 @@
         currentSessionId = data.session_id;
         setTermStatus('running', 'Bot running…');
 
-        // Open SSE stream
         evtSource = new EventSource(`/api/stream/${currentSessionId}`);
 
         evtSource.onmessage = (e) => {
@@ -534,11 +715,11 @@
                 evtSource.close(); evtSource = null;
                 appendLine('', '');
                 if (rc === 0) {
-                    appendLine('[ CRAWL COMPLETE ] — JSON saved successfully.', 'ok');
+                    appendLine('[ CRAWL COMPLETE ] — all output saved.', 'ok');
                     setTermStatus('done', 'Complete');
                 } else {
                     appendLine(`[ PROCESS EXITED ] — return code ${rc}`, 'warn');
-                    setTermStatus('done', 'Finished (rc=' + rc + ')');
+                    setTermStatus('done', `Finished (rc=${rc})`);
                 }
                 showActions();
                 btnLaunch.disabled = false;
@@ -553,7 +734,7 @@
         };
 
         evtSource.onerror = () => {
-            if (evtSource.readyState === EventSource.CLOSED) return; // normal close
+            if (evtSource.readyState === EventSource.CLOSED) return;
             appendLine('[STREAM ERROR] Connection to server lost.', 'err');
             setTermStatus('err', 'Stream error');
             evtSource.close(); evtSource = null;
@@ -561,12 +742,31 @@
         };
     });
 
-    // ── Show action buttons after run ─────────────────────────────────────────
-
+    // ── Show action buttons ───────────────────────────────────────────────────
     function showActions() {
         const sid = currentSessionId;
-        btnDownload.href = `/api/download/${sid}`;
-        btnOpenVis.href  = `/visualizer?session=${sid}`;
+
+        document.getElementById('btn-download-map').href = `/api/download/${sid}`;
+        document.getElementById('btn-open-vis').href     = `/visualizer?session=${sid}`;
+
+        // BYOD download — only show if scan was enabled
+        const byodBtn = document.getElementById('btn-download-byod');
+        if (scanState.byod) {
+            byodBtn.href = `/api/download_byod/${sid}`;
+            byodBtn.classList.remove('hidden');
+        } else {
+            byodBtn.classList.add('hidden');
+        }
+
+        // UBG download — only show if scan was enabled
+        const ubgBtn = document.getElementById('btn-download-ubg');
+        if (scanState.ubg) {
+            ubgBtn.href = `/api/download_ubg/${sid}`;
+            ubgBtn.classList.remove('hidden');
+        } else {
+            ubgBtn.classList.add('hidden');
+        }
+
         actionBar.classList.add('visible');
     }
 })();
