@@ -114,14 +114,27 @@ def stream(session_id):
         q = sess["queue"]
         while True:
             try:
-                line = q.get(timeout=60)
+                # 15-second timeout — well under Render's 30s proxy idle limit.
+                # On Empty we send a keepalive SSE comment instead of dying.
+                line = q.get(timeout=15)
             except queue.Empty:
-                yield "data: [STREAM TIMEOUT]\n\n"
-                break
-            if line is None:          # sentinel from bot thread
+                # Bot is done and queue is truly empty — send final signal and exit.
+                if sess.get("done"):
+                    rc = sess.get("returncode", -1)
+                    yield f"data: __DONE__{rc}\n\n"
+                    break
+                # Bot still running but no output right now — send a heartbeat.
+                # SSE comments (lines starting with ':') are silently ignored by
+                # browsers but they keep the TCP connection alive through Render's
+                # nginx proxy, which would otherwise kill the connection at 30s idle.
+                yield ": heartbeat\n\n"
+                continue
+
+            if line is None:          # sentinel put by _run() when bot finishes
                 rc = sess.get("returncode", -1)
                 yield f"data: __DONE__{rc}\n\n"
                 break
+
             # Escape the line so SSE doesn't break on newlines inside JSON strings
             yield f"data: {json.dumps(line)}\n\n"
 
@@ -129,8 +142,10 @@ def stream(session_id):
         _generate(),
         mimetype="text/event-stream",
         headers={
-            "Cache-Control":   "no-cache",
-            "X-Accel-Buffering": "no",
+            "Cache-Control":     "no-cache",
+            "X-Accel-Buffering": "no",        # disable nginx/Render proxy buffering
+            "Connection":        "keep-alive",
+            "Content-Type":      "text/event-stream; charset=utf-8",
         },
     )
 
