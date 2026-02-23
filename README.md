@@ -1,8 +1,10 @@
-# GhostLink Network — Flask App
+# GhostLink Network
 
 A full-stack Flask web application that combines the GhostLink landing page, live
 ecosystem map, bot launcher, streaming terminal, and visualizer into one tool.
 Built using Claude (Sonnet 4.6 extended) for most of building/converting to a flask app + a bit of Google Gemini for UI.
+
+<a href="https://ghostlinknetwork.onrender.com" target="_blank" rel="noopener noreferrer">https://ghostlinknetwork.onrender.com</a>
 
 xRevan
 ## Setup
